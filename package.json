@@ -1,0 +1,26 @@
+{
+  "private": true,
+  "scripts": {
+    "build": "next build",
+    "dev": "next dev",
+    "start": "next start"
+  },
+  "dependencies": {
+    "@types/node": "20.5.7",
+    "lz-string": "^1.5.0",
+    "next": "^14.0.2",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "tone": "^15.0.4",
+    "typescript": "5.2.2",
+    "webfft": "^1.0.3"
+  },
+  "devDependencies": {
+    "@types/react": "18.2.21",
+    "@types/react-dom": "18.2.14",
+    "dotenv": "^16.3.1"
+  },
+  "engines": {
+    "node": ">=18.17.0"
+  }
+}

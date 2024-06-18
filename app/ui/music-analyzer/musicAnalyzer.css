@@ -1,0 +1,15 @@
+#music-analyzer {
+    display: flex;
+    flex-direction: column;
+    justify-content: left;
+}
+
+#analysisResult {
+    display: flex;
+    flex-direction: column;
+    height: fit-content;
+}
+
+canvas {
+    margin-top: 10px;
+}

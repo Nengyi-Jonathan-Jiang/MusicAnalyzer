@@ -1,0 +1,81 @@
+:root {
+    --bg-color-dark:   #222;
+    --bg-color-light:  #333;
+
+    --voice-3-color:   #f48;
+    --voice-4-color:   #a8f;
+    --voice-1-color:   #48f;
+    --voice-5-color:   #6ef;
+    --voice-2-color:   #0c8;
+    --voice-6-color:   #fd8;
+
+    --highlight-color: #fa6;
+
+    --medium-color:    #666;
+    --fg-color:        white;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+input, button, select, option, textarea {
+    color:      inherit;
+    font:       inherit;
+    background: none;
+    border:     none;
+    outline:    none;
+    margin:     0;
+    padding:    0;
+}
+
+@font-face {
+    font-family: "JetBrains Mono";
+    src:         url("font/JetBrains_Mono/JetBrainsMono-VariableFont_wght.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "Nunito";
+    src:         url("font/Nunito/Nunito-VariableFont_wght.ttf") format("truetype");
+}
+
+@font-face {
+    font-family: "Leland";
+    src:         url("font/Leland.otf") format("opentype");
+}
+
+@font-face {
+    font-family: "Leland Text";
+    src:         url("font/LelandText.otf") format("opentype");
+}
+
+input[type=number].no-wheel::-webkit-outer-spin-button,
+input[type=number].no-wheel::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin:             0;
+}
+
+
+.voice-1 {
+    color: var(--voice-1-color)
+}
+
+.voice-2 {
+    color: var(--voice-2-color)
+}
+
+.voice-3 {
+    color: var(--voice-3-color)
+}
+
+.voice-4 {
+    color: var(--voice-4-color)
+}
+
+.voice-5 {
+    color: var(--voice-5-color)
+}
+
+.voice-6 {
+    color: var(--voice-6-color)
+}
