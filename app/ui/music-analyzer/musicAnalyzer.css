@@ -1,17 +1,90 @@
 #music-analyzer {
+    width: 100%;
+    max-height: 100%;
     display: flex;
     flex-direction: column;
     justify-content: left;
+
+    padding: 5px;
 }
 
-#analysisResult {
+#music-analyzer>div {
+    padding: 10px;
+    margin: 5px;
+    background-color: var(--bg-color-light);
+}
+
+#playback-controls {
     display: flex;
-    flex-direction: column;
-    height: fit-content;
+    align-items: center;
 }
 
-#analysisResult > canvas {
+#spectrum>canvas {
     width: 100%;
     height: auto;
     aspect-ratio: 4;
+}
+
+#waveform {
+    max-height: 25vw;
+    flex-shrink: 1;
+    height: fit-content;
+}
+
+#waveform>canvas {
+    width: 100%;
+    height: 100%;
+}
+
+#current-position-display {
+    display: flex;
+}
+
+#current-position-display>span:nth-child(2) {
+    display: inline-block;
+    width: 4em;
+    min-width: 4em;
+    text-align: right;
+}
+
+.divider {
+    flex-grow: 1;
+    display: flex;
+    justify-content: space-between;
+    height: 30px;
+}
+
+.divider::before, .divider::after {
+    content: "";
+    display: block;
+    width: 1px;
+    height: 100%;
+    background-color: var(--medium-color);
+    margin: 0 10px;
+}
+
+#uploader {
+    padding: 5px;
+    outline: 1px solid white;
+    margin-right: 20px;
+}
+
+#uploader>input[type="file"] {
+    display: none;
+}
+
+#uploader::before {
+    content: "Upload file"
+}
+
+#current-position-adjust>button {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 110%;
+    padding: 2px;
+}
+
+#rewind-button, #playpause-button {
+    font-family: 'JetBrains Mono', monospace;
+    margin-right: 20px;
+    font-size: 90%;
 }

@@ -1,8 +1,11 @@
-import {RefObject, useRef, useState} from "react";
+import {CanvasHTMLAttributes, DetailedHTMLProps, RefObject, useRef, useState} from "react";
 import {Canvas} from "@/app/lib/canvas";
 import {useAnimation} from "@/app/lib/react-utils/hooks";
 
-export function AnimatedCanvas({initializer, animator}: {initializer: (canvas: Canvas) => any, animator: (canvas: Canvas) => any}) {
+export function AnimatedCanvas({initializer, animator, ...canvasProps}: {
+    initializer: (canvas: Canvas) => any,
+    animator: (canvas: Canvas) => any
+} & Partial<DetailedHTMLProps<CanvasHTMLAttributes<HTMLCanvasElement>, HTMLCanvasElement>>) {
     const ref: RefObject<HTMLCanvasElement> = useRef(null);
 
     const [canvas] = useState(() => {
@@ -15,5 +18,5 @@ export function AnimatedCanvas({initializer, animator}: {initializer: (canvas: C
         animator.call(null, canvas);
     });
 
-    return <canvas ref={ref}></canvas>
+    return <canvas ref={ref} {...canvasProps}></canvas>
 }

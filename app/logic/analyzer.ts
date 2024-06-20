@@ -3,6 +3,7 @@ import {convertRangeBackwards, LinearValueConvertor} from "@/app/lib/utils/value
 import {IntRange, NumberRange} from "@/app/lib/utils/numberRange";
 import {MusicPlayer} from "@/app/logic/musicPlayer";
 import webfft from "webfft";
+import {createArray} from "@/app/lib/utils/util";
 
 
 function toArray(arr: Float32Array | Float32Array[]) : Float32Array {
@@ -13,9 +14,12 @@ function getWaveformData(buffer: ToneAudioBuffer, startTime: number) : Float32Ar
     return toArray(buffer.slice(startTime).toArray());
 }
 
+const blackmanWindowCache = new Map<number, Float32Array>;
+
 function getFFT(buffer: ToneAudioBuffer, startTime: number, resolution: number) {
     let size = 1 << resolution;
     const fft = new webfft(size);
+    fft.setSubLibrary('kissWasm');
 
     let data: Float32Array;
 
@@ -31,20 +35,31 @@ function getFFT(buffer: ToneAudioBuffer, startTime: number, resolution: number) 
         data = arr.slice(arr.length - size * 2, arr.length);
     }
 
-    // Do Blackman window
-    {
+    // Compute blackman window
+    if(!blackmanWindowCache.has(resolution)) {
         const alpha = 0.16;
         const a0 = 0.5 * (1 - alpha);
         const a1 = 0.5;
         const a2 = 0.5 * alpha;
-        for (let i = 0; i < data.length; ++i) {
+
+        const arr = new Float32Array(data.length).map((_, i) => {
             const x = i / data.length;
-            const window = a0 - a1 * Math.cos(2 * Math.PI * x) + a2 * Math.cos(4 * Math.PI * x);
-            data[i] *= window;
-        }
+            return a0 - a1 * Math.cos(2 * Math.PI * x) + a2 * Math.cos(4 * Math.PI * x);
+        });
+
+        blackmanWindowCache.set(resolution, arr);
     }
 
-    const out = fft.fft(data)
+    let window = blackmanWindowCache.get(resolution) as Float32Array;
+    for (let i = 0; i < data.length; ++i) {
+        data[i] *= window[i];
+    }
+    // Do Blackman window
+
+
+    const fftResult = fft.fft(data);
+
+    const out = fftResult
         .map((_, i, arr) => Math.hypot(
             arr[i],
             arr[i + 1]
@@ -124,11 +139,21 @@ export class MusicAnalyzer {
     }
 
     reAnalyze() {
-        const fftData = this.#analyzerNode.getValue();
-        this.#analysisData = Array.isArray(fftData) ? fftData[0] : fftData;
-    }
+        if(!this.player.isBufferLoaded) return;
 
-    reAnalyzeImmediate() {
-        this.#analysisData = getFFT(this.player.buffer, this.player.position, this.resolution);
+        const newData = getFFT(this.player.buffer, this.player.position, this.resolution);
+
+        if(this.#analysisData.length !== newData.length) {
+            this.#analysisData = newData;
+        }
+        else {
+            this.#analysisData = new Float32Array(createArray(newData.length, i => {
+                const prevValue = this.#analysisData[i];
+                const newValue = newData[i];
+
+                if(isNaN(prevValue) || !isFinite(prevValue)) return newValue;
+                return prevValue * this.smoothing + newValue * (1 - this.smoothing);
+            }));
+        }
     }
 }

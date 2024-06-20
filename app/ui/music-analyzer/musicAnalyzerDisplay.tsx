@@ -109,9 +109,7 @@ function redraw(canvas: Canvas, analyzer: MusicAnalyzer) {
 
 export function MusicAnalyzerDisplay() {
     const [analyzer] = useState(() => {
-        const player = new MusicPlayer();
-        player.node.toDestination();
-        return new MusicAnalyzer(player);
+        return new MusicAnalyzer(new MusicPlayer());
     });
     const {player} = analyzer;
 
@@ -129,56 +127,55 @@ export function MusicAnalyzerDisplay() {
     }, []);
 
     useAnimation(() => {
-        if(analyzer.player.isPlaying) {
-            if (ref.current) {
-                ref.current.innerText = `${player.position.toFixed(3)}`;
-            }
-
-            analyzer.reAnalyze();
+        if (ref.current) {
+            ref.current.innerText = `${player.position.toFixed(2)}`;
         }
+
+        analyzer.reAnalyze();
     });
 
     return <div id="music-analyzer">
         <div id="playback-controls">
+            <Uploader callback={(url, revokeURL) => {
+                player.buffer = new ToneAudioBuffer(url, revokeURL);
+            }} fileTypes={[".mp3", ".wav"]} labelProps={{id: "uploader"}}/>
 
             <button id="rewind-button" onClick={() => {
                 player.rewind()
-            }}>{"<=="}</button>
+            }}>{"<||"}</button>
             <button id="playpause-button" onClick={() => {
                 if (player.isPlaying) player.pause();
                 else player.play();
             }}>{player.isPlaying ? "||" : "|>"}</button>
 
-            <div>
+            <div id="current-position-display">
                 <span>Current position: </span>
-                <span ref={ref} contentEditable={player.isPlaying ? undefined : true} onKeyDown={e => {
-                    if(!e.key.match(/^[.\d]|Home|End|Arrow.*|Backspace$/)) {
-                        e.preventDefault();
-                    }
-                }}></span>
-
-                <div id="current-position-adjust">
-                    <button onClick={() => {
-                        player.position += 0.01;
-                        analyzer.reAnalyzeImmediate();
-                    }}>+</button>
-                    <button onClick={() => {
-                        player.position -= 0.01;
-                        analyzer.reAnalyzeImmediate();
-                    }}>-</button>
-                </div>
+                <span ref={ref}>{`${player.position.toFixed(2)}`}</span>
             </div>
-
-            <div id="divider"></div>
-
-            <Uploader callback={(url, revokeURL) => {
-                player.buffer = new ToneAudioBuffer(url, revokeURL);
-            }} fileTypes={[".mp3", ".wav"]}/>
+            <div id="current-position-adjust">
+                <button onClick={() => {
+                    player.position += 0.01;
+                }}>+
+                </button>
+                <button onClick={() => {
+                    player.position -= 0.01;
+                }}>-
+                </button>
+            </div>
         </div>
         <div id="waveform">
-            <AnimatedCanvas initializer={canvas => {
+            <AnimatedCanvas onClick={(e) => {
+                const clickFraction = (e.clientX - (e.target as HTMLCanvasElement).clientLeft) / (e.target as HTMLCanvasElement).clientWidth;
+                player.position = clamp(clickFraction, 0, 1) * player.duration;
+            }} onMouseMove={(e) => {
+                if(!(e.buttons & 1)) return;
+                const clickFraction = (e.clientX - (e.target as HTMLCanvasElement).clientLeft) / (e.target as HTMLCanvasElement).clientWidth;
+                player.position = clamp(clickFraction, 0, 1) * player.duration;
+            }} initializer={canvas => {
                 canvas.clearColor = 'white';
             }} animator={canvas => {
+                canvas.resizeToFitCSS();
+
                 canvas.clear();
 
                 canvas.strokeColor = '#aaa';
@@ -194,13 +191,16 @@ export function MusicAnalyzerDisplay() {
                 canvas.beginNewPath();
                 canvas.beginSubPathAt(0, x[0] * canvas.height / 2);
 
-                for (let i = 0; i <= canvas.width; i ++) {
-                    const p = (i - 1) / canvas.width;
+                let m = 0.1;
+                for (let i = 0; i < 1; i += 0.0005) {
+                    m = Math.max(m, Math.abs(x[~~(x.length * i)]));
+                }
 
-                    let val = Math.abs(x[~~(x.length * p)]);
+                for (let i = 0; i < 1; i += 0.0005) {
+                    const val = Math.abs(x[~~(x.length * i)]) / m * 0.8;
 
-                    canvas.lineTo(i, canvas.height * (1 + val) / 2);
-                    canvas.lineTo(i, canvas.height * (1 - val) / 2);
+                    canvas.lineTo(i * canvas.width, canvas.height * (1 + val) / 2);
+                    canvas.lineTo(i * canvas.width, canvas.height * (1 - val) / 2);
                 }
 
                 canvas.stroke();
@@ -233,9 +233,9 @@ export function MusicAnalyzerDisplay() {
             <input type="range" min="10" max="14" step="1" defaultValue="12" onInput={({target}) => {
                 analyzer.resolution = +(target as HTMLInputElement).value;
             }}/>
-        </div>
-
-        <div>
+            <input type="range" min="0" max="0.9" step="0.05" defaultValue="0.8" onInput={({target}) => {
+                analyzer.smoothing = +(target as HTMLInputElement).value;
+            }}/>
         </div>
     </div>;
 }

@@ -12,6 +12,8 @@ export class MusicPlayer {
 
     constructor() {
         this.#player = new Player();
+        this.#player.toDestination();
+
         this.#player.onstop = this.#onstop.bind(this);
     }
 
@@ -46,7 +48,6 @@ export class MusicPlayer {
 
     pause() {
         this.#player.stop();
-
         this.#onstop();
     }
 
@@ -62,6 +63,7 @@ export class MusicPlayer {
     set position(time: number) {
         if(this.#isPlaying) {
             this.pause();
+            setTimeout(() => this.play(), 300);
         }
         this.#startPosition = clamp(time, 0, this.duration);
     }
