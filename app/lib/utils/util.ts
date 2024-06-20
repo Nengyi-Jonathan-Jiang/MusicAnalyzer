@@ -7,6 +7,7 @@ import {DependencyList, RefObject, useEffect, useState} from "react";
  *              Otherwise, the array will be filled with this value.
  */
 export function createArray<T>(length: number, value: T | ((index: number) => T)): T[] {
+    if(length < 1) return [];
     return typeof value === "function"
         ? new Array(length).fill(null).map((_, i) => (value as (index : number) => T)(i))
         : new Array(length).fill(value);

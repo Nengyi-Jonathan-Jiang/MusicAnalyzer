@@ -1,4 +1,4 @@
-import {Ref, RefObject} from "react";
+import {RefObject} from "react";
 
 type CanvasOptions = {
     useTransparency?: boolean,
@@ -32,7 +32,7 @@ class CanvasBase {
         if(options?.width) this.width = options?.width;
         if(options?.height) this.height = options?.height;
 
-        this.updateCanvas();
+        this.updateCanvas(true);
     }
 
     get width() {
@@ -40,9 +40,13 @@ class CanvasBase {
     }
 
     set width(width: number) {
+        if(width === this.#width) return;
+
         this.#width = width;
         if (this.canvas) {
             this.canvas.width = width;
+            this.#updateCtxFont();
+            this.#updateCtxTextAlignment();
         }
     }
 
@@ -51,9 +55,13 @@ class CanvasBase {
     }
 
     set height(height: number) {
+        if(height === this.#height) return;
+
         this.#height = height;
         if (this.canvas) {
             this.canvas.height = height;
+            this.#updateCtxFont();
+            this.#updateCtxTextAlignment();
         }
     }
 
@@ -62,8 +70,8 @@ class CanvasBase {
         return this.#canvasElement;
     }
 
-    private updateCanvas() {
-        if (this.#canvasRef.current !== this.#canvasElement) {
+    private updateCanvas(force=false) {
+        if (this.#canvasRef.current !== this.#canvasElement || force) {
             if (this.#canvasRef.current !== null) {
                 this.changeCanvasTo(this.#canvasRef.current);
             } else {
@@ -83,11 +91,11 @@ class CanvasBase {
 
         if(!this.#ctx) return;
 
-        this.#ctx.strokeStyle = this.#strokeColor;
-        this.#ctx.fillStyle = this.#fillColor;
-        this.#ctx.lineWidth = this.#strokeWidth;
-        [this.#ctx.textBaseline, this.#ctx.textAlign] = this.#textAlign.split(' ') as [CanvasTextBaseline, CanvasTextAlign];
-        this.#ctx.font = this.#font;
+        this.#updateCtxStrokeColor();
+        this.#updateCtxFillColor();
+        this.#updateCtxStrokeWidth();
+        this.#updateCtxTextAlignment();
+        this.#updateCtxFont();
     }
 
     protected get ctx() {
@@ -97,22 +105,35 @@ class CanvasBase {
 
     resizeToFitCSS() {
         if (this.canvas !== null) {
+            let result = this.width !== this.canvas.clientWidth || this.height !== this.canvas.clientHeight;
+
             this.width = this.canvas.clientWidth;
             this.height = this.canvas.clientHeight;
+
+            return result;
         }
+        return false;
     }
 
     set strokeColor(color: string) {
         this.#strokeColor = color;
+        this.#updateCtxStrokeColor();
+    }
+
+    #updateCtxStrokeColor() {
         if (this.ctx) {
-            this.ctx.strokeStyle = color;
+            this.ctx.strokeStyle = this.#strokeColor;
         }
     }
 
     set fillColor(color: string) {
         this.#fillColor = color;
+        this.#updateCtxFillColor();
+    }
+
+    #updateCtxFillColor() {
         if (this.ctx) {
-            this.ctx.fillStyle = color;
+            this.ctx.fillStyle = this.#fillColor;
         }
     }
 
@@ -122,8 +143,12 @@ class CanvasBase {
 
     set strokeWidth(width: number) {
         this.#strokeWidth = width;
+        this.#updateCtxStrokeWidth();
+    }
+
+    #updateCtxStrokeWidth() {
         if (this.ctx) {
-            this.ctx.lineWidth = width;
+            this.ctx.lineWidth = this.#strokeWidth;
         }
     }
 
@@ -133,15 +158,23 @@ class CanvasBase {
 
     set textAlignment(alignment: TextAlignment) {
         this.#textAlign = alignment;
-        if(this.ctx) {
+        this.#updateCtxTextAlignment();
+    }
+
+    #updateCtxTextAlignment() {
+        if (this.ctx) {
             [this.ctx.textBaseline, this.ctx.textAlign] = this.#textAlign.split(' ') as [CanvasTextBaseline, CanvasTextAlign];
         }
     }
 
     set font(font: string) {
         this.#font = font;
+        this.#updateCtxFont();
+    }
+
+    #updateCtxFont() {
         if(this.ctx) {
-            this.ctx.font = font;
+            this.ctx.font = this.#font;
         }
     }
 
@@ -188,8 +221,8 @@ class CanvasBase {
     clear() {
         if (!this.ctx) return;
 
-        this.ctx.save();
-        this.ctx.resetTransform();
+        this.pushState();
+        this.resetTransform();
         this.ctx.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
         if (this.#clearColor !== "transparent") {
@@ -197,7 +230,7 @@ class CanvasBase {
             this.ctx.fillRect(0, 0, this.width, this.height);
         }
 
-        this.ctx.restore();
+        this.popState();
     }
 
 
@@ -220,7 +253,7 @@ class CanvasBase {
         this.ctx.save();
     }
 
-    restoreState() {
+    popState() {
         if (!this.ctx) return;
         this.ctx.restore()
     }
@@ -235,10 +268,21 @@ class CanvasBase {
         this.ctx.translate(x, y)
     }
 
+    scale(amount: number) {
+        if (!this.ctx) return;
+        this.ctx.scale(amount, amount);
+    }
+
     rotateAroundPoint(angle: number, x: number, y: number) {
         this.translate(-x, -y);
         this.rotate(angle);
         this.translate(x, y);
+    }
+
+    resetTransform() {
+        if(!this.ctx) return;
+
+        this.ctx.resetTransform();
     }
 }
 
@@ -252,7 +296,6 @@ export class Canvas extends CanvasBase {
         this.beginNewPath();
         this.line(x1, y1, x2, y2);
         this.stroke();
-        this.closeCurrentSubPath();
     }
 
     rect(x1: number, y1: number, width: number, height: number) {
@@ -304,18 +347,12 @@ export class Canvas extends CanvasBase {
 
     immediateFillText(txt: string, x: number, y: number) {
         if (!this.ctx) return;
-
-        this.beginNewPath();
         this.ctx.fillText(txt, x, y);
-        this.closeCurrentSubPath();
     }
 
     immediateStrokeText(txt: string, x: number, y: number) {
         if (!this.ctx) return;
-
-        this.beginNewPath();
         this.ctx.strokeText(txt, x, y);
-        this.closeCurrentSubPath();
     }
 
     polygon(center: [number, number], ...pointOffsets: [number, number][]) {

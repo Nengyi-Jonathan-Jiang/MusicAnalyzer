@@ -1,57 +1,103 @@
-import {Analyser, getContext, getDestination, Player, ToneAudioBuffer, ToneAudioNode} from "tone";
-import {LinearValueConvertor} from "@/app/lib/utils/valueConvertor";
+import {Analyser, getContext, ToneAudioBuffer} from "tone";
+import {convertRangeBackwards, LinearValueConvertor} from "@/app/lib/utils/valueConvertor";
+import {IntRange, NumberRange} from "@/app/lib/utils/numberRange";
+import {MusicPlayer} from "@/app/logic/musicPlayer";
+import webfft from "webfft";
 
-export class MusicPlayer {
-    readonly #player: Player;
 
-    constructor() {
-        this.#player = new Player();
+function toArray(arr: Float32Array | Float32Array[]) : Float32Array {
+    return Array.isArray(arr) ? arr[0] : arr;
+}
+
+function getWaveformData(buffer: ToneAudioBuffer, startTime: number) : Float32Array {
+    return toArray(buffer.slice(startTime).toArray());
+}
+
+function getFFT(buffer: ToneAudioBuffer, startTime: number, resolution: number) {
+    let size = 1 << resolution;
+    const fft = new webfft(size);
+
+    let data: Float32Array;
+
+    try {
+        data = getWaveformData(buffer, startTime).slice(0, size * 2);
+        if(data.length < size * 2) { // noinspection ExceptionCaughtLocallyJS
+            throw new Error();
+        }
+    }
+    catch {
+        // Not enough data
+        let arr = toArray(buffer.toArray());
+        data = arr.slice(arr.length - size * 2, arr.length);
     }
 
-    get sampleRate() : number {
-        return 1 / this.#player.sampleTime;
+    // Do Blackman window
+    {
+        const alpha = 0.16;
+        const a0 = 0.5 * (1 - alpha);
+        const a1 = 0.5;
+        const a2 = 0.5 * alpha;
+        for (let i = 0; i < data.length; ++i) {
+            const x = i / data.length;
+            const window = a0 - a1 * Math.cos(2 * Math.PI * x) + a2 * Math.cos(4 * Math.PI * x);
+            data[i] *= window;
+        }
     }
 
-    play() {
-        this.#player.start();
-    }
+    const out = fft.fft(data)
+        .map((_, i, arr) => Math.hypot(
+            arr[i],
+            arr[i + 1]
+        ))
+        .filter((_, i) => i % 2 == 0)
+        .map(i => 20 * Math.log(i))
+    ;
+    fft.dispose();
 
-    stop() {
-        this.#player.stop();
-    }
-
-    set buffer(buffer: ToneAudioBuffer) {
-        this.#player.buffer = buffer;
-    }
-
-    get node() : ToneAudioNode {
-        return this.#player;
-    }
+    return out;
 }
 
 export class MusicAnalyzer {
-    readonly #waveformAnalyzerNode: Analyser;
-    readonly #fftAnalyzerNode: Analyser;
+    readonly #analyzerNode: Analyser;
+    readonly #player: MusicPlayer;
+    #analysisData: Float32Array = new Float32Array;
+    #resolution: number;
+    #smoothing: number;
 
-    #waveformAnalysis: Float32Array = new Float32Array;
-    #fftAnalysis: Float32Array = new Float32Array;
-
-    constructor(fftResolution: number = 14) {
-        this.#waveformAnalyzerNode = new Analyser({type: "waveform", size: 4096});
-        this.#fftAnalyzerNode = new Analyser({type: "fft", size: 1 << fftResolution});
+    constructor(player: MusicPlayer, fftResolution: number = 12, smoothing=0.8) {
+        this.#player = player;
+        this.#resolution = fftResolution;
+        this.#analyzerNode = new Analyser({type: "fft",  smoothing, size: 1 << fftResolution});
+        this.#player.node.connect(this.#analyzerNode);
+        this.#smoothing = smoothing;
     }
 
-    get waveformData() : Float32Array {
-        return this.#waveformAnalysis
+    get player() {
+        return this.#player;
     }
 
-    get fftData() : Float32Array  {
-        return this.#fftAnalysis;
+    get analysisData() : Float32Array  {
+        return this.#analysisData;
     }
 
-    set fftResolution(resolution: number){
+    set smoothing(smoothing: number) {
+        this.#smoothing = smoothing;
+        this.#analyzerNode.smoothing = smoothing;
+    }
+
+    get smoothing() {
+        return this.#smoothing;
+    }
+
+    // resolution should be an integer in the range [4, 14]
+    set resolution(resolution: number){
         if(resolution < 4 || resolution > 14) throw new Error('Invalid analyzer resolution');
-        this.#fftAnalyzerNode.size = 1 << resolution;
+        this.#resolution = resolution;
+        this.#analyzerNode.size = 1 << resolution;
+    }
+
+    get resolution() {
+        return this.#resolution;
     }
 
     get maxFrequency() {
@@ -60,7 +106,7 @@ export class MusicAnalyzer {
     }
 
     get numBins() {
-        return this.#fftAnalyzerNode.size;
+        return this.#analyzerNode.size;
     }
 
     get frequencyBinSize() {
@@ -71,20 +117,18 @@ export class MusicAnalyzer {
         return new LinearValueConvertor(this.frequencyBinSize, 0);
     }
 
-    getFrequencyStrengthDecibels(frequency: number){
-        const binIndex = ~~this.binIndexToFrequencyConvertor.convertBackwards(frequency);
-        if(binIndex >= this.numBins || binIndex < 0) return Number.NEGATIVE_INFINITY;
-        return this.#fftAnalysis[binIndex];
+    getBinIndexRangeForFrequencies(frequencyRange: NumberRange) {
+        return IntRange.smallestRangeContaining(
+            convertRangeBackwards(this.binIndexToFrequencyConvertor, frequencyRange)
+        ).trimmedToRange(new IntRange(0, this.numBins))
     }
 
     reAnalyze() {
-        const waveformData = this.#waveformAnalyzerNode.getValue();
-        this.#waveformAnalysis = Array.isArray(waveformData) ? waveformData[0] : waveformData;
-        const fftData = this.#fftAnalyzerNode.getValue();
-        this.#fftAnalysis = Array.isArray(fftData) ? fftData[0] : fftData;
+        const fftData = this.#analyzerNode.getValue();
+        this.#analysisData = Array.isArray(fftData) ? fftData[0] : fftData;
     }
 
-    set source(node: ToneAudioNode) {
-        node.fan(this.#waveformAnalyzerNode, this.#fftAnalyzerNode, getDestination());
+    reAnalyzeImmediate() {
+        this.#analysisData = getFFT(this.player.buffer, this.player.position, this.resolution);
     }
 }

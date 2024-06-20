@@ -10,6 +10,8 @@
     height: fit-content;
 }
 
-canvas {
-    margin-top: 10px;
+#analysisResult > canvas {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4;
 }

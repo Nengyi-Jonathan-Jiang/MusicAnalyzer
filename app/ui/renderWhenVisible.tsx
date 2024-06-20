@@ -1,5 +1,4 @@
 import {PropsWithChildren, ReactNode, RefObject, useEffect, useRef, useState} from "react";
-import {createArray} from "@/app/lib/utils/util";
 
 const observationCallbacks = new Map<Element, (isIntersecting: boolean) => void>;
 

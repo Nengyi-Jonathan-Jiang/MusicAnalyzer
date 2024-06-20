@@ -3,7 +3,7 @@
 import './ui.css'
 import './style.css'
 
-import React, {useEffect} from "react";
+import React from "react";
 import LoadingScreen from "@/app/ui/loadingScreen";
 import {MusicAnalyzerDisplay} from "@/app/ui/music-analyzer/musicAnalyzerDisplay";
 

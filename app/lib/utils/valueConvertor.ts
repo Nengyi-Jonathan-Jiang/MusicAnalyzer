@@ -1,85 +1,59 @@
-import {ReadonlyRange, Range} from "@/app/lib/utils/range";
+import {NumberRange, ReadonlyNumberRange} from "@/app/lib/utils/numberRange";
 
-export abstract class ValueConvertor {
-    public abstract convertForwards(amountA: number): number;
-    public abstract convertBackwards(amountB: number): number;
+export abstract class ValueConvertor<T, U> {
+    public abstract convertForwards(amountA: T): U;
 
-    public composedWith(...others: ValueConvertor[]){
-        return ValueConvertor.compose(this, ...others);
+    public abstract convertBackwards(amountB: U): T;
+
+    public composedWith<V>(other: ValueConvertor<U, V>): ValueConvertor<T, V> {
+        const thiz = this;
+        return new class extends ValueConvertor<T, V> {
+            convertForwards = (amountA: T): V => {
+                return other.convertForwards(thiz.convertForwards(amountA));
+            }
+
+            convertBackwards = (amountB: V): T => {
+                return thiz.convertBackwards(other.convertBackwards(amountB));
+            }
+        };
     }
 
-    public inverted() : ValueConvertor {
-        return new InvertedValueConvertor(this);
-    }
+    public inverted(): ValueConvertor<U, T> {
+        const thiz = this;
+        return new class extends ValueConvertor<U, T> {
+            convertForwards = (amountA: U): T => {
+                return thiz.convertBackwards(amountA);
+            }
 
-    public convertRangeForwards(range: ReadonlyRange){
-        return range.copy()
-            .modifyStart(i => this.convertForwards(i))
-            .modifyEnd(i => this.convertForwards(i))
-    }
-
-    public convertRangeBackwards(range: ReadonlyRange){
-        return range.copy()
-            .modifyStart(i => this.convertBackwards(i))
-            .modifyEnd(i => this.convertBackwards(i))
-    }
-
-    public static compose(...convertors: ValueConvertor[]) : ValueConvertor {
-        return new ComposedValueConvertor(...convertors);
-    }
-
-    public static invert(convertor: ValueConvertor) {
-        return new InvertedValueConvertor(convertor);
-    }
-
-    public static readonly logTransform = new class extends ValueConvertor {
-        convertBackwards(amountB: number): number {
-            return Math.exp(amountB);
-        }
-
-        convertForwards(amountA: number): number {
-            return Math.log(amountA);
-        }
-    }();
-
-    public static readonly expTransform : ValueConvertor;
-}
-
-class ComposedValueConvertor extends ValueConvertor {
-    private readonly convertors: ValueConvertor[];
-    constructor(...convertors : ValueConvertor[]) {
-        super();
-        this.convertors = convertors;
-    }
-
-    convertForwards(amountA: number): number {
-        return this.convertors.reduce((amount, convertor) => convertor.convertForwards(amount), amountA);
-    }
-
-    convertBackwards(amountB: number): number {
-        return this.convertors.reduceRight((amount, convertor) => convertor.convertBackwards(amount), amountB);
+            convertBackwards = (amountB: T): U => {
+                return thiz.convertForwards(amountB);
+            }
+        };
     }
 }
 
-class InvertedValueConvertor extends ValueConvertor {
-    private readonly baseConvertor: ValueConvertor;
+export type NumericValueConvertor = ValueConvertor<number, number>;
 
-    constructor(convertor: ValueConvertor) {
-        super();
-        this.baseConvertor = convertor;
-    }
-
-    convertForwards(amountA: number): number {
-        return this.baseConvertor.convertBackwards(amountA);
-    }
-
-    convertBackwards(amountB: number): number {
-        return this.baseConvertor.convertForwards(amountB);
-    }
+export function convertRangeForwards(convertor: NumericValueConvertor, range: ReadonlyNumberRange) {
+    return range.copy().modifyStart(convertor.convertForwards).modifyEnd(convertor.convertForwards)
 }
 
+export function convertRangeBackwards(convertor: NumericValueConvertor, range: ReadonlyNumberRange) {
+    return range.copy().modifyStart(convertor.convertBackwards).modifyEnd(convertor.convertBackwards)
+}
 
-export class LinearValueConvertor extends ValueConvertor {
+export const logTransform : NumericValueConvertor = new class extends ValueConvertor<number, number> {
+    convertForwards = (amountA: number): number => {
+        return Math.log(amountA);
+    }
+
+    convertBackwards = (amountB: number): number => {
+        return Math.exp(amountB);
+    }
+}
+export const expTransform : NumericValueConvertor = logTransform.inverted();
+
+export class LinearValueConvertor extends ValueConvertor<number, number> {
     readonly #factor: number;
     readonly #offset: number;
 
@@ -95,33 +69,37 @@ export class LinearValueConvertor extends ValueConvertor {
         this.#offset = applyOffsetFirst ? factor * offset : offset;
     }
 
-    convertForwards(amountA: number) {
+    convertForwards = (amountA: number) => {
         return amountA * this.#factor + this.#offset;
     }
 
-    convertBackwards(amountB: number) {
+    convertBackwards = (amountB: number) => {
         return (amountB - this.#offset) / this.#factor;
     }
 
-    static fittingRangeTo(sourceRange : ReadonlyRange, destRange : ReadonlyRange) : LinearValueConvertor {
-        // To convert value a from sourceRange to destRange, we write
-        // b = (a - sourceRange.start) / sourceRange.length * destRange.length + destRange.start
-        // which simplifies to
-        // b = a * (destRange.length / sourceRange.length) +
-        //         (-sourceRange.start * destRange.length / sourceRange.length + destRange.start)
-
+    static fittingRangeTo(sourceRange: ReadonlyNumberRange, destRange: ReadonlyNumberRange): NumericValueConvertor {
         const factor = destRange.length / sourceRange.length;
         return new LinearValueConvertor(factor, destRange.start - sourceRange.start * factor)
     }
+
+    static normalizing(sourceRange: ReadonlyNumberRange): NumericValueConvertor {
+        return LinearValueConvertor.fittingRangeTo(sourceRange, new NumberRange(0, 1));
+    }
+
+    static fittingRangeToAfter(sourceRange: ReadonlyNumberRange, destRange: ReadonlyNumberRange, transform: NumericValueConvertor): NumericValueConvertor {
+        return transform.composedWith(
+            LinearValueConvertor.fittingRangeTo(
+                convertRangeForwards(transform, sourceRange),
+                destRange
+            )
+        );
+    }
+
+    static normalizingAfter(sourceRange: ReadonlyNumberRange, transform: NumericValueConvertor): NumericValueConvertor {
+        return transform.composedWith(
+            LinearValueConvertor.normalizing(
+                convertRangeForwards(transform, sourceRange),
+            )
+        );
+    }
 }
-
-// @ts-ignore
-// noinspection JSConstantReassignment
-ValueConvertor.expTransform = ValueConvertor.logTransform.inverted();
-
-// @ts-ignore
-window.ValueConvertor = ValueConvertor;
-// @ts-ignore
-window.LinearValueConvertor = LinearValueConvertor;
-// @ts-ignore
-window._Range = Range;

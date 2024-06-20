@@ -1,28 +1,28 @@
 import {createArray} from "@/app/lib/utils/util";
-import {bindToThis} from "@/app/lib/utils/decorators";
 
-export interface ReadonlyRange {
+export interface ReadonlyNumberRange {
     readonly endpoints: number[];
     readonly start: number;
     readonly end: number;
     readonly length: number;
 
-    trimmedToRange(interval: ReadonlyRange): Range;
+    trimmedToRange(interval: ReadonlyNumberRange): NumberRange;
 
-    copy() : Range;
+    copy() : NumberRange;
 }
 
-export interface ReadonlyIntRange extends ReadonlyRange {
+export interface ReadonlyIntRange extends ReadonlyNumberRange {
     readonly valuesInRange: number[];
     readonly startExclusive: number;
     readonly endExclusive: number;
+    readonly numIntsInRange: number;
 
     trimmedToRange(interval: ReadonlyIntRange): IntRange;
 
     copy() : IntRange;
 }
 
-export class Range implements ReadonlyRange {
+export class NumberRange implements ReadonlyNumberRange {
     #start: number = 0;
     #end: number = 0;
 
@@ -83,27 +83,27 @@ export class Range implements ReadonlyRange {
     }
 
     copy() {
-        return new Range().setStart(this.start).setEnd(this.end);
+        return new NumberRange().setStart(this.start).setEnd(this.end);
     }
 
-    trimToRange(interval: ReadonlyRange) {
+    trimToRange(interval: ReadonlyNumberRange) {
         this.start = Math.max(this.start, interval.start);
         this.end = Math.min(this.end, interval.end);
         return this;
     }
 
-    trimmedToRange(interval: ReadonlyRange) {
+    trimmedToRange(interval: ReadonlyNumberRange) {
         return this.copy().trimToRange(interval);
     }
 
     static fromEndpoints(p1: number, p2: number) {
-        return new Range()
+        return new NumberRange()
             .setStart(Math.min(p1, p2))
             .setEnd(Math.max(p1, p2))
     }
 }
 
-export class IntRange extends Range{
+export class IntRange extends NumberRange implements ReadonlyIntRange {
 
     constructor();
     constructor(startInclusive: number, endInclusive: number);
@@ -111,12 +111,16 @@ export class IntRange extends Range{
         super(startInclusive, endInclusive);
     }
 
-    get length() {
+    copy() {
+        return new IntRange().setStart(this.start).setEnd(this.end);
+    }
+
+    get numIntsInRange() {
         return super.length + 1;
     }
 
     get valuesInRange(): number[] {
-        return createArray(this.length, i => i + this.start);
+        return createArray(this.numIntsInRange, i => i + this.start);
     }
 
     [Symbol.iterator](): Iterator<number> {
@@ -149,6 +153,10 @@ export class IntRange extends Range{
     modifyStartExclusive(mappingFunction: (this: null, start: number) => any): this {
         this.startExclusive = mappingFunction.call(null, this.startExclusive);
         return this;
+    }
+
+    trimmedToRange(interval: ReadonlyIntRange) {
+        return this.copy().trimToRange(interval);
     }
 
     get endExclusive() {
@@ -189,5 +197,13 @@ export class IntRange extends Range{
 
     static forIndicesOf(arrayLike: {length: number}) {
         return new IntRange(0, arrayLike.length - 1);
+    }
+
+    static smallestRangeContaining(range: ReadonlyNumberRange) {
+        return new IntRange(Math.floor(range.start), Math.ceil(range.end));
+    }
+
+    static largestRangeContainedIn(range: ReadonlyNumberRange) {
+        return new IntRange(Math.ceil(range.start), Math.floor(range.end));
     }
 }

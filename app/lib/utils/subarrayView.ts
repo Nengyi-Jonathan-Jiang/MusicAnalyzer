@@ -1,7 +1,8 @@
-import {createArray, editArray} from "@/app/lib/utils/util";
-import {IntRange, ReadonlyIntRange} from "@/app/lib/utils/range";
+import {createArray} from "@/app/lib/utils/util";
+import {IntRange, ReadonlyIntRange} from "@/app/lib/utils/numberRange";
 
-type ArrayOrArrayView<T> = T[] | SubarrayView<T>;
+type TypedArray = Float32Array | Float64Array | Int8Array | Int16Array | Int32Array;
+type ArrayOrArrayView<T> = T[] | SubarrayView<T> | (T extends number ? TypedArray : never);
 
 class SubarrayViewIterator<T> implements IterableIterator<T> {
     private readonly arrayView: SubarrayView<T>;
@@ -81,8 +82,8 @@ export interface ReadonlySubarrayView<T> {
 // noinspection JSUnusedGlobalSymbols
 /** A light view on a subarray */
 export class SubarrayView<T> {
-    private readonly backingIndexRange: ReadonlyIntRange;
-    private readonly backingArray: ArrayOrArrayView<T>;
+    public readonly backingIndexRange: ReadonlyIntRange;
+    public readonly backingArray: ArrayOrArrayView<T>;
 
     constructor(backingArray: ArrayOrArrayView<T>, backingIndexRange?: ReadonlyIntRange) {
         if (backingIndexRange !== undefined) {
@@ -95,14 +96,14 @@ export class SubarrayView<T> {
     }
 
     get length() {
-        return this.backingIndexRange.length;
+        return this.backingIndexRange.numIntsInRange;
     }
 
     get(index: number): T {
         const backingArray = this.backingArray,
             backingIndex = index + this.backingIndexRange.start;
 
-        return backingArray instanceof SubarrayView ? backingArray.get(backingIndex) : backingArray[backingIndex];
+        return backingArray instanceof SubarrayView ? backingArray.get(backingIndex) : backingArray[backingIndex] as T;
     }
 
     set(index: number, value: T): T {
@@ -118,8 +119,10 @@ export class SubarrayView<T> {
         return value;
     }
 
-    [Symbol.iterator](): IterableIterator<T> {
-        return new SubarrayViewIterator<T>(this);
+    *[Symbol.iterator](): IterableIterator<T> {
+        for(const index of IntRange.forIndicesOf(this)) {
+            yield this.get(index);
+        }
     }
 
     every(predicate: (this: null, value: T, index: number) => boolean): boolean;

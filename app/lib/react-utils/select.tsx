@@ -1,5 +1,5 @@
-import {ComponentType, CSSProperties, PropsWithChildren, RefObject, useEffect, useRef, useState} from "react";
-import {useRefs} from "@/app/lib/react-utils/useRefs";
+import {ComponentType, CSSProperties, RefObject, useEffect, useRef, useState} from "react";
+import {useRefs} from "@/app/lib/react-utils/hooks";
 import {useListenerOnWindow} from "@/app/lib/utils/util";
 
 type SelectOptionComponentProps<OptionValueType, RefType extends HTMLElement> = {
