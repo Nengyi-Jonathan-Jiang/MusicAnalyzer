@@ -48,7 +48,7 @@ function redraw(canvas: Canvas, analyzer: MusicAnalyzer) {
         const freq = freqToMidiConvertor.convertBackwards(midiNoteNumber);
         const x = freqToDisplayFractionConvertor.convertForwards(freq) * canvas.width;
 
-        let noteName = midiNoteValueToString(midiNoteNumber);
+        const noteName = midiNoteValueToString(midiNoteNumber);
         canvas.immediateFillText(noteName, x, canvas.height * .025);
         canvas.immediateLine(x, canvas.height * .05, x, canvas.height);
     }
@@ -69,7 +69,7 @@ function redraw(canvas: Canvas, analyzer: MusicAnalyzer) {
             if(val > data[i - 1] && val > data[i + 1]) {
                 // Found a peak, check depth
 
-                let maxDepth = new MaximumFinder(0);
+                const maxDepth = new MaximumFinder(0);
 
                 let pos : number;
                 pos = i + 1;
@@ -150,26 +150,43 @@ export function MusicAnalyzerDisplay() {
 
             <div id="current-position-display">
                 <span>Current position: </span>
-                <span ref={ref}>{`${player.position.toFixed(2)}`}</span>
+                <span ref={ref} onWheel={e => {
+                    player.position -= e.deltaY / 1000;
+                }}>{`${player.position.toFixed(2)}`}</span>
             </div>
-            <div id="current-position-adjust">
-                <button onClick={() => {
-                    player.position += 0.01;
-                }}>+
-                </button>
-                <button onClick={() => {
-                    player.position -= 0.01;
-                }}>-
-                </button>
-            </div>
+
+            <div className="divider"></div>
+
+            <label id="spectral-resolution">
+                <span>Spectral resolution: </span>
+                <input type="range" min="10" max="14" step="1" defaultValue="12" onInput={({target}) => {
+                    analyzer.resolution = +(target as HTMLInputElement).value;
+                    ((target as HTMLElement).nextElementSibling as HTMLElement).innerText = [
+                        "Fastest",
+                        "Faster",
+                        "Balanced",
+                        "Fine",
+                        "Best",
+                    ][analyzer.resolution - 10];
+                }}/>
+                <span>{[
+                    "Fastest",
+                    "Faster",
+                    "Balanced",
+                    "Fine",
+                    "Best",
+                ][analyzer.resolution - 10]}</span>
+            </label>
         </div>
         <div id="waveform">
             <AnimatedCanvas onClick={(e) => {
-                const clickFraction = (e.clientX - (e.target as HTMLCanvasElement).clientLeft) / (e.target as HTMLCanvasElement).clientWidth;
+                const bb = (e.target as HTMLCanvasElement).getBoundingClientRect();
+                const clickFraction = (e.clientX - bb.left) / bb.width;
                 player.position = clamp(clickFraction, 0, 1) * player.duration;
             }} onMouseMove={(e) => {
-                if(!(e.buttons & 1)) return;
-                const clickFraction = (e.clientX - (e.target as HTMLCanvasElement).clientLeft) / (e.target as HTMLCanvasElement).clientWidth;
+                if (!(e.buttons & 1)) return;
+                const bb = (e.target as HTMLCanvasElement).getBoundingClientRect();
+                const clickFraction = (e.clientX - bb.left) / bb.width;
                 player.position = clamp(clickFraction, 0, 1) * player.duration;
             }} initializer={canvas => {
                 canvas.clearColor = 'white';
@@ -208,7 +225,7 @@ export function MusicAnalyzerDisplay() {
                 canvas.strokeColor = 'black';
                 canvas.strokeWidth = 2;
 
-                let playFraction = clamp(player.position / player.duration, 0, 1);
+                const playFraction = clamp(player.position / player.duration, 0, 1);
                 canvas.immediateLine(
                     playFraction * canvas.width, 0,
                     playFraction * canvas.width, canvas.height
@@ -227,14 +244,6 @@ export function MusicAnalyzerDisplay() {
             }} animator={canvas => {
                 canvas.resizeToFitCSS();
                 redraw(canvas, analyzer);
-            }}/>
-        </div>
-        <div id="analysis-controls">
-            <input type="range" min="10" max="14" step="1" defaultValue="12" onInput={({target}) => {
-                analyzer.resolution = +(target as HTMLInputElement).value;
-            }}/>
-            <input type="range" min="0" max="0.9" step="0.05" defaultValue="0.8" onInput={({target}) => {
-                analyzer.smoothing = +(target as HTMLInputElement).value;
             }}/>
         </div>
     </div>;
