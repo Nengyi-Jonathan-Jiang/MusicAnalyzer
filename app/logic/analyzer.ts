@@ -6,12 +6,12 @@ import webfft from "webfft";
 import {createArray} from "@/app/lib/utils/util";
 
 
-function toArray(arr: Float32Array | Float32Array[]) : Float32Array {
+function toArray(arr: Float32Array | Float32Array[]): Float32Array {
     return Array.isArray(arr) ? arr[0] : arr;
 }
 
-function getWaveformData(buffer: ToneAudioBuffer, startTime: number) : Float32Array {
-    return toArray(buffer.slice(startTime).toArray());
+function getWaveformData(buffer: ToneAudioBuffer, startTime: number): Float32Array {
+    return buffer.getChannelData(0).subarray(startTime * buffer.sampleRate);
 }
 
 const blackmanWindowCache = new Map<number, Float32Array>;
@@ -25,18 +25,17 @@ function getFFT(buffer: ToneAudioBuffer, startTime: number, resolution: number) 
 
     try {
         data = getWaveformData(buffer, startTime).slice(0, size * 2);
-        if(data.length < size * 2) { // noinspection ExceptionCaughtLocallyJS
+        if (data.length < size * 2) { // noinspection ExceptionCaughtLocallyJS
             throw new Error();
         }
-    }
-    catch {
+    } catch {
         // Not enough data
         let arr = toArray(buffer.toArray());
         data = arr.slice(arr.length - size * 2, arr.length);
     }
 
     // Compute blackman window
-    if(!blackmanWindowCache.has(resolution)) {
+    if (!blackmanWindowCache.has(resolution)) {
         const alpha = 0.16;
         const a0 = 0.5 * (1 - alpha);
         const a1 = 0.5;
@@ -79,10 +78,10 @@ export class MusicAnalyzer {
     #resolution: number;
     #smoothing: number;
 
-    constructor(player: MusicPlayer, fftResolution: number = 12, smoothing=0.8) {
+    constructor(player: MusicPlayer, fftResolution: number = 12, smoothing = 0.8) {
         this.#player = player;
         this.#resolution = fftResolution;
-        this.#analyzerNode = new Analyser({type: "fft",  smoothing, size: 1 << fftResolution});
+        this.#analyzerNode = new Analyser({type: "fft", smoothing, size: 1 << fftResolution});
         this.#player.node.connect(this.#analyzerNode);
         this.#smoothing = smoothing;
     }
@@ -91,7 +90,7 @@ export class MusicAnalyzer {
         return this.#player;
     }
 
-    get analysisData() : Float32Array  {
+    get analysisData(): Float32Array {
         return this.#analysisData;
     }
 
@@ -105,8 +104,8 @@ export class MusicAnalyzer {
     }
 
     // resolution should be an integer in the range [4, 14]
-    set resolution(resolution: number){
-        if(resolution < 4 || resolution > 14) throw new Error('Invalid analyzer resolution');
+    set resolution(resolution: number) {
+        if (resolution < 4 || resolution > 14) throw new Error('Invalid analyzer resolution');
         this.#resolution = resolution;
         this.#analyzerNode.size = 1 << resolution;
     }
@@ -139,11 +138,11 @@ export class MusicAnalyzer {
     }
 
     reAnalyze() {
-        if(!this.player.isBufferLoaded) return;
+        if (!this.player.isBufferLoaded) return;
 
         const newData = getFFT(this.player.buffer, this.player.position, this.resolution);
 
-        if(this.#analysisData.length !== newData.length) {
+        if (this.#analysisData.length !== newData.length) {
             this.#analysisData = newData;
         }
         else {
@@ -151,7 +150,7 @@ export class MusicAnalyzer {
                 const prevValue = this.#analysisData[i];
                 const newValue = newData[i];
 
-                if(isNaN(prevValue) || !isFinite(prevValue)) return newValue;
+                if (isNaN(prevValue) || !isFinite(prevValue)) return newValue;
                 return prevValue * this.smoothing + newValue * (1 - this.smoothing);
             }));
         }
