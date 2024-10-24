@@ -18,16 +18,18 @@ function getFFT(audio: AudioFile, startTime: number, resolution: number) {
 
     let data: Float32Array;
 
-    try {
-        data = getWaveformData(audio, startTime).slice(0, size * 2);
-        if (data.length < size * 2) { // noinspection ExceptionCaughtLocallyJS
-            throw new Error();
-        }
-    } catch {
-        // Not enough data, use the last few seconds.
-        let arr = getWaveformData(audio, 0);
-        data = arr.slice(arr.length - size * 2, arr.length);
-    }
+    data = audio.getData(startTime, size);
+
+    // try {
+    //     data = getWaveformData(audio, startTime).slice(0, size * 2);
+    //     if (data.length < size * 2) { // noinspection ExceptionCaughtLocallyJS
+    //         throw new Error();
+    //     }
+    // } catch {
+    //     // Not enough data, use the last few seconds.
+    //     let arr = getWaveformData(audio, 0);
+    //     data = arr.slice(arr.length - size * 2, arr.length);
+    // }
 
     const fft = new webfft(size);
     fft.setSubLibrary('kissWasm');
