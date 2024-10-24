@@ -4,35 +4,33 @@ import {IntRange, NumberRange} from "@/app/lib/utils/numberRange";
 import {MusicPlayer} from "@/app/logic/musicPlayer";
 import webfft from "webfft";
 import {createArray} from "@/app/lib/utils/util";
+import {AudioFile} from "@/app/logic/audioFIle";
 
+function getWaveformData(audio: AudioFile, startTime: number): Readonly<Float32Array> {
 
-function toArray(arr: Float32Array | Float32Array[]): Float32Array {
-    return Array.isArray(arr) ? arr[0] : arr;
-}
-
-function getWaveformData(buffer: ToneAudioBuffer, startTime: number): Float32Array {
-    return buffer.getChannelData(0).subarray(startTime * buffer.sampleRate);
+    return audio.arr.subarray(startTime * audio.buffer.sampleRate);
 }
 
 const blackmanWindowCache = new Map<number, Float32Array>;
 
-function getFFT(buffer: ToneAudioBuffer, startTime: number, resolution: number) {
+function getFFT(audio: AudioFile, startTime: number, resolution: number) {
     let size = 1 << resolution;
-    const fft = new webfft(size);
-    fft.setSubLibrary('kissWasm');
 
     let data: Float32Array;
 
     try {
-        data = getWaveformData(buffer, startTime).slice(0, size * 2);
+        data = getWaveformData(audio, startTime).slice(0, size * 2);
         if (data.length < size * 2) { // noinspection ExceptionCaughtLocallyJS
             throw new Error();
         }
     } catch {
-        // Not enough data
-        let arr = toArray(buffer.toArray());
+        // Not enough data, use the last few seconds.
+        let arr = getWaveformData(audio, 0);
         data = arr.slice(arr.length - size * 2, arr.length);
     }
+
+    const fft = new webfft(size);
+    fft.setSubLibrary('kissWasm');
 
     // Compute blackman window
     if (!blackmanWindowCache.has(resolution)) {
@@ -53,6 +51,7 @@ function getFFT(buffer: ToneAudioBuffer, startTime: number, resolution: number) 
     for (let i = 0; i < data.length; ++i) {
         data[i] *= window[i];
     }
+
     // Do Blackman window
 
 
@@ -138,20 +137,23 @@ export class MusicAnalyzer {
     }
 
     reAnalyze() {
-        if (!this.player.isBufferLoaded) return;
+        if (!this.player.isAudioLoaded) return;
 
-        const newData = getFFT(this.player.buffer, this.player.position, this.resolution);
+        const newData = getFFT(
+            this.player.audio,
+            this.player.position,
+            this.resolution
+        );
 
         if (this.#analysisData.length !== newData.length) {
             this.#analysisData = newData;
-        }
-        else {
+        } else {
             this.#analysisData = new Float32Array(createArray(newData.length, i => {
-                const prevValue = this.#analysisData[i];
+                const oldValue = this.#analysisData[i];
                 const newValue = newData[i];
 
-                if (isNaN(prevValue) || !isFinite(prevValue)) return newValue;
-                return prevValue * this.smoothing + newValue * (1 - this.smoothing);
+                if (isNaN(oldValue) || !isFinite(oldValue)) return newValue;
+                return oldValue * this.smoothing + newValue * (1 - this.smoothing);
             }));
         }
     }

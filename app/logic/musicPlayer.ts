@@ -1,24 +1,26 @@
 import {now, Player, ToneAudioBuffer, ToneAudioNode} from "tone";
 import {clamp} from "@/app/lib/utils/util";
+import {AudioFile} from "@/app/logic/audioFIle";
 
 export class MusicPlayer {
     readonly #player: Player;
+    #audio: AudioFile;
     #startTime: number = NaN;
     #isPlaying: boolean = false;
     #startPosition: number = 0;
 
-    public onstop : () => any = () => void 0;
+    public onstop: () => any = () => void 0;
     public onstart: () => any = () => void 0;
 
     constructor() {
         this.#player = new Player();
         this.#player.toDestination();
-
+        this.#audio = new AudioFile(new ToneAudioBuffer());
         this.#player.onstop = this.#onstop.bind(this);
     }
 
     #onstop() {
-        if(!this.#isPlaying) return;
+        if (!this.#isPlaying) return;
 
         this.#startPosition += this.#playTimeSinceLastStarted;
         this.#isPlaying = false;
@@ -27,16 +29,12 @@ export class MusicPlayer {
     }
 
     get duration() {
-        return this.buffer.duration;
-    }
-
-    get sampleRate(): number {
-        return 1 / this.#player.sampleTime;
+        return this.audio.buffer.duration;
     }
 
     play() {
-        if(this.#isPlaying || !this.isBufferLoaded) return;
-        if(this.isFinished) this.position = 0;
+        if (this.#isPlaying || !this.isAudioLoaded) return;
+        if (this.isFinished) this.position = 0;
 
         this.#isPlaying = true;
 
@@ -52,7 +50,7 @@ export class MusicPlayer {
     }
 
     get #playTimeSinceLastStarted() {
-        if(!this.#isPlaying) return 0;
+        if (!this.#isPlaying) return 0;
         return now() - this.#startTime;
     }
 
@@ -61,7 +59,7 @@ export class MusicPlayer {
     }
 
     set position(time: number) {
-        if(this.#isPlaying) {
+        if (this.#isPlaying) {
             this.pause();
             setTimeout(() => this.play(), 300);
         }
@@ -81,22 +79,18 @@ export class MusicPlayer {
         return this.#isPlaying;
     }
 
-    get buffer() {
-        return this.#player.buffer
+    get audio() {
+        return this.#audio
     }
 
-    get bufferAsFloat32Array() {
-        const arr = this.buffer.toArray();
-        return Array.isArray(arr) ? arr[0] : arr;
-    }
-
-    set buffer(buffer: ToneAudioBuffer) {
+    set audio(audio: AudioFile) {
         this.rewind();
-        this.#player.buffer = buffer;
+        this.#player.buffer = audio.buffer;
+        this.#audio = audio;
     }
 
-    get isBufferLoaded() {
-        return this.buffer.loaded;
+    get isAudioLoaded() {
+        return this.audio.buffer.loaded;
     }
 
     get node(): ToneAudioNode {

@@ -16,6 +16,7 @@ import {MaximumFinder, MinMaxFinder} from "@/app/lib/utils/minMax";
 import {freqToMidiConvertor, midiNoteValueToString} from "@/app/ui/music-analyzer/midiHelpers";
 import {AnimatedCanvas} from "@/app/ui/music-analyzer/animatedCanvas";
 import {Uploader} from "@/app/ui/music-analyzer/uploader";
+import {AudioFile} from "@/app/logic/audioFIle";
 
 const frequencyRange =
     new NumberRange(27.5, 4200);
@@ -137,7 +138,8 @@ export function MusicAnalyzerDisplay() {
     return <div id="music-analyzer">
         <div id="playback-controls">
             <Uploader callback={(url, revokeURL) => {
-                player.buffer = new ToneAudioBuffer(url, revokeURL);
+                console.log(`Loading ${url}`);
+                player.audio = new AudioFile(new ToneAudioBuffer(url, revokeURL));
             }} fileTypes={[".mp3", ".wav"]} labelProps={{id: "uploader"}}/>
 
             <button id="rewind-button" onClick={() => {
@@ -198,12 +200,12 @@ export function MusicAnalyzerDisplay() {
                 canvas.strokeColor = '#aaa';
                 canvas.strokeWidth = 1;
 
-                if(!player.isBufferLoaded) {
+                if(!player.isAudioLoaded) {
                     canvas.immediateLine(0, canvas.height / 2, canvas.width, canvas.height / 2);
                     return;
                 }
 
-                const x = player.bufferAsFloat32Array;
+                const x = player.audio.arr;
 
                 canvas.beginNewPath();
                 canvas.beginSubPathAt(0, x[0] * canvas.height / 2);
