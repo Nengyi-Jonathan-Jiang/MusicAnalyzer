@@ -16,7 +16,8 @@ import {MaximumFinder, MinMaxFinder} from "@/app/lib/utils/minMax";
 import {freqToMidiConvertor, midiNoteValueToString} from "@/app/ui/music-analyzer/midiHelpers";
 import {AnimatedCanvas} from "@/app/ui/music-analyzer/animatedCanvas";
 import {Uploader} from "@/app/ui/music-analyzer/uploader";
-import {AudioFile} from "@/app/logic/audioFIle";
+import {AudioFile} from "@/app/logic/audioFile";
+import {AudioReconstructor} from "@/app/logic/audioReconstructor";
 
 const frequencyRange =
     new NumberRange(27.5, 4200);
@@ -41,7 +42,11 @@ function redraw(canvas: Canvas, analyzer: MusicAnalyzer) {
     canvas.strokeColor = "#aaa";
     canvas.font = `${canvas.width * 0.005}px sans-serif`;
 
-    const data = new Float32Array(analyzer.analysisData);
+    const data = new Float32Array(
+        analyzer.analysisData.map(
+            i => Math.log(i)
+        )
+    );
     const relevantBinIndexRange = analyzer.getBinIndexRangeForFrequencies(frequencyRange)
     normalizeAndProcessFFTData(new SubarrayView<number>(data, relevantBinIndexRange));
 
@@ -66,31 +71,29 @@ function redraw(canvas: Canvas, analyzer: MusicAnalyzer) {
         const y = canvas.height * (1 - .9 * val);
 
         // Check for peaks
-        if(relevantBinIndexRange.includes(i - 1) && relevantBinIndexRange.includes(i + 1)) {
-            if(val > data[i - 1] && val > data[i + 1]) {
+        if (relevantBinIndexRange.includes(i - 1) && relevantBinIndexRange.includes(i + 1)) {
+            if (val > data[i - 1] && val > data[i + 1]) {
                 // Found a peak, check depth
 
                 const maxDepth = new MaximumFinder(0);
 
-                let pos : number;
+                let pos: number;
                 pos = i + 1;
-                while(relevantBinIndexRange.includes(pos)) {
-                    if(data[pos] < data[pos - 1]) {
+                while (relevantBinIndexRange.includes(pos)) {
+                    if (data[pos] < data[pos - 1]) {
                         maxDepth.accept(val - data[pos]);
                         pos++;
-                    }
-                    else break;
+                    } else break;
                 }
                 pos = i - 1;
-                while(relevantBinIndexRange.includes(pos)) {
-                    if(data[pos] < data[pos + 1]) {
+                while (relevantBinIndexRange.includes(pos)) {
+                    if (data[pos] < data[pos + 1]) {
                         maxDepth.accept(val - data[pos]);
                         pos--;
-                    }
-                    else break;
+                    } else break;
                 }
 
-                if(maxDepth.get() > 0.1) {
+                if (maxDepth.get() > 0.1) {
                     canvas.immediateFillCircle(x, y, 3);
 
                     canvas.font = `${canvas.width * 0.006 * (
@@ -124,7 +127,7 @@ export function MusicAnalyzerDisplay() {
     const ref = useRef<HTMLSpanElement>(null);
 
     useEffect(() => {
-        if(ref.current) ref.current.innerText = '0.000';
+        if (ref.current) ref.current.innerText = '0.000';
     }, []);
 
     useAnimation(() => {
@@ -161,14 +164,16 @@ export function MusicAnalyzerDisplay() {
 
             <label id="spectral-resolution">
                 <span>Spectral resolution: </span>
-                <input type="range" min="10" max="14" step="1" defaultValue="12" onInput={({target}) => {
+                <input type="range" min="10" max="16" step="1" defaultValue="12" onInput={({target}) => {
                     analyzer.resolution = +(target as HTMLInputElement).value;
                     ((target as HTMLElement).nextElementSibling as HTMLElement).innerText = [
                         "Fastest",
                         "Faster",
                         "Balanced",
                         "Fine",
-                        "Best",
+                        "Finer",
+                        "Super",
+                        "Best"
                     ][analyzer.resolution - 10];
                 }}/>
                 <span>{[
@@ -176,7 +181,9 @@ export function MusicAnalyzerDisplay() {
                     "Faster",
                     "Balanced",
                     "Fine",
-                    "Best",
+                    "Finer",
+                    "Super",
+                    "Best"
                 ][analyzer.resolution - 10]}</span>
             </label>
         </div>
@@ -200,7 +207,7 @@ export function MusicAnalyzerDisplay() {
                 canvas.strokeColor = '#aaa';
                 canvas.strokeWidth = 1;
 
-                if(!player.isAudioLoaded) {
+                if (!player.isAudioLoaded) {
                     canvas.immediateLine(0, canvas.height / 2, canvas.width, canvas.height / 2);
                     return;
                 }
@@ -247,6 +254,15 @@ export function MusicAnalyzerDisplay() {
                 canvas.resizeToFitCSS();
                 redraw(canvas, analyzer);
             }}/>
+        </div>
+        <div id="reconstruct">
+            <button onClick={(e) => {
+                const reconstruct = new AudioReconstructor();
+                reconstruct.set_data(analyzer);
+                reconstruct.start();
+                reconstruct.stop(2);
+            }}>Reconstructed
+            </button>
         </div>
     </div>;
 }

@@ -1,6 +1,6 @@
 import {now, Player, ToneAudioBuffer, ToneAudioNode} from "tone";
 import {clamp} from "@/app/lib/utils/util";
-import {AudioFile} from "@/app/logic/audioFIle";
+import {AudioFile} from "@/app/logic/audioFile";
 
 export class MusicPlayer {
     readonly #player: Player;

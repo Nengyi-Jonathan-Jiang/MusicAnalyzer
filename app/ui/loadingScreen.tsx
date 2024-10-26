@@ -13,7 +13,7 @@ export default function LoadingScreen({children} : PropsWithChildren) {
         {isMounted ? children : (
             <div className="loading-screen">
                 <div className="loading-screen-spinner"></div>
-                <span className="loading-screen-text">Loading editor...</span>
+                <span className="loading-screen-text">Loading analyzer...</span>
             </div>
         )}
     </>
