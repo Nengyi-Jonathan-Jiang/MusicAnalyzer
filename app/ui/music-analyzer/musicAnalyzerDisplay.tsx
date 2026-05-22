@@ -6,7 +6,7 @@ import { MusicAnalyzer } from "@/app/logic/analyzer";
 import { clamp, useManualRerender } from "@/app/lib/utils/util";
 
 import "./musicAnalyzer.css";
-import { musicPlayer } from "@/app/logic/musicPlayer";
+import { MusicPlayer } from "@/app/logic/musicPlayer";
 import {
     Listener, useAnimation, useListenerOnElement, useListenerOnWindow,
 } from "@/app/lib/react-utils/hooks";
@@ -131,9 +131,8 @@ function redraw (canvas: Canvas, analyzer: MusicAnalyzer) {
 
 export function MusicAnalyzerDisplay () {
     const [ analyzer ] = useState(() => {
-        return new MusicAnalyzer(musicPlayer);
+        return new MusicAnalyzer(new MusicPlayer());
     });
-
     const { player } = analyzer;
 
     const rerender = useManualRerender();
@@ -300,7 +299,7 @@ export function MusicAnalyzerDisplay () {
                 );
 
                 canvas.stroke();
-            } } ref={ canvasRef }/>
+            } } ref={canvasRef}/>
         </div>
         <div id="spectrum">
             <AnimatedCanvas initializer={ canvas => {

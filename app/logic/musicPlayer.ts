@@ -1,61 +1,8 @@
-import { getContext, now, Player, ToneAudioBuffer } from "tone";
+import { now, Player, ToneAudioBuffer } from "tone";
 import { clamp } from "@/app/lib/utils/util";
 import { AudioFile } from "@/app/logic/audioFile";
-import { rawDoAnimation, useAnimation } from "@/app/lib/react-utils/hooks";
 
-class MediaSessionHelper {
-    readonly #mediaSession: MediaSession;
-    readonly #destNode: MediaStreamAudioDestinationNode;
-    readonly #audioElement: HTMLAudioElement;
-
-    constructor () {
-        this.#mediaSession = navigator.mediaSession!;
-        this.#audioElement = document.createElement("audio");
-        this.#audioElement.setAttribute('controls','')
-        this.#destNode = getContext().createMediaStreamDestination();
-        this.#audioElement.srcObject = this.#destNode.stream;
-
-
-        (window as any)['audio'] = this.#audioElement
-    }
-
-    setPlayer (player: MusicPlayer) {
-        player.rawOutputNode.connect(this.#destNode);
-        this.#audioElement.addEventListener('pause', () => {
-            player.pause();
-        })
-        this.#audioElement.addEventListener('play', () => {
-            player.play();
-        })
-    };
-
-    update(player: MusicPlayer) {
-        this.#mediaSession.setPositionState({
-            duration: player.duration,
-            position: player.position
-        })
-    }
-
-    play () {
-        this.#audioElement.play();
-        this.#mediaSession.metadata = new MediaMetadata({
-            title:   'Music Analyzer',
-            album:   'Unknown',
-            artist:  'Unknown',
-            artwork: [],
-        });
-    }
-
-    pause () {
-        this.#audioElement.pause();
-    }
-}
-
-const mediaSessionHelper = 'mediaSession' in navigator
-    ? new MediaSessionHelper
-    : new Proxy({}, { get () {return () => void 0;} }) as MediaSessionHelper;
-
-class MusicPlayer {
+export class MusicPlayer {
     readonly #player: Player;
     #audio: AudioFile;
 
@@ -72,7 +19,7 @@ class MusicPlayer {
 
     constructor () {
         this.#player = new Player();
-        // this.#player.toDestination();
+        this.#player.toDestination();
         this.#audio = new AudioFile(new ToneAudioBuffer());
         this.#player.onstop = () => {
             if (!this.#isPlaying) return;
@@ -85,10 +32,6 @@ class MusicPlayer {
             this.#lastResumedTime = NaN;
             this.onstop.call(null);
         };
-
-        // set up media session api
-        mediaSessionHelper.setPlayer(this);
-        rawDoAnimation(() => mediaSessionHelper.update(this));
     }
 
     get duration () {
@@ -106,7 +49,6 @@ class MusicPlayer {
 
         if (this.#player.state !== 'stopped') return;
         this.#player.start(now(), this.#lastResumedPosition);
-        mediaSessionHelper.play();
     }
 
     pause () {
@@ -119,7 +61,6 @@ class MusicPlayer {
 
         if (this.#player.state !== 'started') return;
         this.#player.stop();
-        mediaSessionHelper.pause();
     }
 
     #cancelAutoResume () {
@@ -150,7 +91,6 @@ class MusicPlayer {
     }
 
     set position (time: number) {
-        console.log('position set');
         this.#lastResumedPosition = clamp(time, 0, this.duration);
 
         if (time >= this.duration) {
@@ -193,16 +133,9 @@ class MusicPlayer {
         this.rewind();
         this.#player.buffer = audio.buffer;
         this.#audio = audio;
-        mediaSessionHelper.update(this);
     }
 
     get isAudioLoaded () {
         return this.audio.buffer.loaded;
     }
-
-    get rawOutputNode () {
-        return this.#player;
-    }
 }
-
-export const musicPlayer = new MusicPlayer();
