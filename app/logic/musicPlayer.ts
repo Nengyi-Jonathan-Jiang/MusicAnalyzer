@@ -6,8 +6,8 @@ export class MusicPlayer {
     readonly #player: Player;
     #audio: AudioFile;
 
-    #lastResumedTime: number = NaN;
-    #lastResumedPosition: number = 0;
+    #resumeTime: number = NaN;
+    #resumePosition: number = 0;
 
     #isPlaying: boolean = false;
 
@@ -24,12 +24,12 @@ export class MusicPlayer {
         this.#player.onstop = () => {
             if (!this.#isPlaying) return;
 
-            if(this.#lastResumedTime + this.#playTimeSinceResumed >= this.duration) {
-                this.#lastResumedPosition = this.duration;
+            if (this.#resumeTime + this.#playTimeSinceResumed >= this.duration) {
+                this.#resumePosition = this.duration;
             }
 
             this.#isPlaying = false;
-            this.#lastResumedTime = NaN;
+            this.#resumeTime = NaN;
             this.onstop.call(null);
         };
     }
@@ -40,23 +40,23 @@ export class MusicPlayer {
 
     play () {
         if (this.#isPlaying || !this.isAudioLoaded) return;
-        if (this.isFinished) this.#lastResumedPosition = 0;
+        if (this.isFinished) this.#resumePosition = 0;
 
         this.#isPlaying = true;
-        this.#lastResumedTime = now();
+        this.#resumeTime = now();
 
         this.onstart.call(null);
 
         if (this.#player.state !== 'stopped') return;
-        this.#player.start(now(), this.#lastResumedPosition);
+        this.#player.start(this.#resumeTime, this.#resumePosition);
     }
 
     pause () {
         if (!this.#isPlaying) return;
         this.#cancelAutoResume();
-        this.#lastResumedPosition = this.position;
+        this.#resumePosition = this.position;
         this.#isPlaying = false;
-        this.#lastResumedTime = NaN;
+        this.#resumeTime = NaN;
         this.onstop.call(null);
 
         if (this.#player.state !== 'started') return;
@@ -83,7 +83,7 @@ export class MusicPlayer {
 
     get #playTimeSinceResumed () {
         if (!this.#isPlaying) return 0;
-        return now() - this.#lastResumedTime;
+        return now() - this.#resumeTime;
     }
 
     get isFinished () {
@@ -91,29 +91,25 @@ export class MusicPlayer {
     }
 
     set position (time: number) {
-        this.#lastResumedPosition = clamp(time, 0, this.duration);
-
         if (time >= this.duration) {
             this.pause(); // At the end; pause and stop immediately
-            return;
         }
-
-        if (this.isPlaying) {
+        else if (this.#isPlaying) {
             this.pause(); // Not at the end and playing; resume later
             this.#scheduleAutoResume();
-            return;
         }
-
-        if (this.#autoResume !== null) {
+        else if (this.#autoResume !== null) {
             this.#scheduleAutoResume(); // Paused but will resume; resume later
         }
+
+        this.#resumePosition = clamp(time, 0, this.duration);
     }
 
     get position () {
-        return this.isPlaying ? clamp(
-            this.#lastResumedPosition + this.#playTimeSinceResumed,
+        return this.#isPlaying ? clamp(
+            this.#resumePosition + this.#playTimeSinceResumed,
             0, this.duration,
-        ) : this.#lastResumedPosition;
+        ) : this.#resumePosition;
     }
 
     rewind () {
