@@ -1,6 +1,6 @@
-import {now, Player, ToneAudioBuffer, ToneAudioNode} from "tone";
-import {clamp} from "@/app/lib/utils/util";
-import {AudioFile} from "@/app/logic/audioFile";
+import { now, Player, ToneAudioBuffer, ToneAudioNode } from "tone";
+import { clamp } from "@/app/lib/utils/util";
+import { AudioFile } from "@/app/logic/audioFile";
 
 export class MusicPlayer {
     readonly #player: Player;
@@ -12,14 +12,14 @@ export class MusicPlayer {
     public onstop: () => any = () => void 0;
     public onstart: () => any = () => void 0;
 
-    constructor() {
+    constructor () {
         this.#player = new Player();
         this.#player.toDestination();
         this.#audio = new AudioFile(new ToneAudioBuffer());
         this.#player.onstop = this.#onstop.bind(this);
     }
 
-    #onstop() {
+    #onstop () {
         if (!this.#isPlaying) return;
 
         this.#startPosition += this.#playTimeSinceLastStarted;
@@ -28,11 +28,11 @@ export class MusicPlayer {
         this.onstop.call(null);
     }
 
-    get duration() {
+    get duration () {
         return this.audio.buffer.duration;
     }
 
-    play() {
+    play () {
         if (this.#isPlaying || !this.isAudioLoaded) return;
         if (this.isFinished) this.position = 0;
 
@@ -44,56 +44,82 @@ export class MusicPlayer {
         this.onstart.call(null);
     }
 
-    pause() {
+    pause () {
         this.#player.stop();
         this.#onstop();
     }
 
-    get #playTimeSinceLastStarted() {
+    get #playTimeSinceLastStarted () {
         if (!this.#isPlaying) return 0;
         return now() - this.#startTime;
     }
 
-    get isFinished() {
+    get isFinished () {
         return this.position > this.duration - 0.001;
     }
 
-    set position(time: number) {
+    #resumePlayingTimeout: NodeJS.Timeout | null = null;
+    static readonly #resumePlayingDelay: number = 1000;
+
+    set position (time: number) {
+        if (time >= this.duration) {
+            this.pause();
+            if (this.#resumePlayingTimeout !== null) {
+                clearTimeout(this.#resumePlayingTimeout);
+                this.#resumePlayingTimeout = null;
+            }
+            this.#startPosition = this.duration;
+            return;
+        }
+
+        if (this.#resumePlayingTimeout !== null) {
+            clearTimeout(this.#resumePlayingTimeout);
+            this.#resumePlayingTimeout = setTimeout(() => {
+                this.play();
+                this.#resumePlayingTimeout = null;
+            }, MusicPlayer.#resumePlayingDelay);
+        }
         if (this.#isPlaying) {
             this.pause();
-            setTimeout(() => this.play(), 300);
+            if (this.#resumePlayingTimeout !== null) {
+                clearTimeout(this.#resumePlayingTimeout);
+            }
+            this.#resumePlayingTimeout = setTimeout(() => {
+                this.play();
+                this.#resumePlayingTimeout = null;
+            }, MusicPlayer.#resumePlayingDelay);
         }
         this.#startPosition = clamp(time, 0, this.duration);
     }
 
-    get position() {
+    get position () {
         return this.#startPosition + this.#playTimeSinceLastStarted;
     }
 
-    rewind() {
+    rewind () {
         this.pause();
         this.position = 0;
     }
 
-    get isPlaying() {
+    get isPlaying () {
         return this.#isPlaying;
     }
 
-    get audio() {
-        return this.#audio
+    get audio () {
+        return this.#audio;
     }
 
-    set audio(audio: AudioFile) {
+    set audio (audio: AudioFile) {
         this.rewind();
         this.#player.buffer = audio.buffer;
         this.#audio = audio;
     }
 
-    get isAudioLoaded() {
+    get isAudioLoaded () {
         return this.audio.buffer.loaded;
     }
 
-    get node(): ToneAudioNode {
+    get node (): ToneAudioNode {
         return this.#player;
     }
 }

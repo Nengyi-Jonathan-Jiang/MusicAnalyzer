@@ -1,4 +1,4 @@
-import {RefObject} from "react";
+import { RefObject } from "react";
 
 type CanvasOptions = {
     useTransparency?: boolean,
@@ -22,25 +22,29 @@ class CanvasBase {
     #font: string = "";
     #textAlign: TextAlignment = TextAlignment.Center;
 
-    constructor(canvasElement: HTMLCanvasElement | RefObject<HTMLCanvasElement>, options?: CanvasOptions) {
+    constructor (
+        canvasElement: HTMLCanvasElement | RefObject<HTMLCanvasElement>,
+        options?: CanvasOptions,
+    ) {
         if (canvasElement instanceof HTMLCanvasElement) {
-            this.#canvasRef = {current: canvasElement} as RefObject<HTMLCanvasElement>;
-        } else this.#canvasRef = canvasElement;
+            this.#canvasRef = { current: canvasElement } as RefObject<HTMLCanvasElement>;
+        }
+        else this.#canvasRef = canvasElement;
 
         this.#useTransparency = options?.useTransparency ?? true;
 
-        if(options?.width) this.width = options?.width;
-        if(options?.height) this.height = options?.height;
+        if (options?.width) this.width = options?.width;
+        if (options?.height) this.height = options?.height;
 
         this.updateCanvas(true);
     }
 
-    get width() {
+    get width () {
         return this.#width;
     }
 
-    set width(width: number) {
-        if(width === this.#width) return;
+    set width (width: number) {
+        if (width === this.#width) return;
 
         this.#width = width;
         if (this.canvas) {
@@ -50,12 +54,12 @@ class CanvasBase {
         }
     }
 
-    get height() {
+    get height () {
         return this.#height;
     }
 
-    set height(height: number) {
-        if(height === this.#height) return;
+    set height (height: number) {
+        if (height === this.#height) return;
 
         this.#height = height;
         if (this.canvas) {
@@ -65,31 +69,36 @@ class CanvasBase {
         }
     }
 
-    get canvas() {
+    get canvas () {
         this.updateCanvas();
         return this.#canvasElement;
     }
 
-    private updateCanvas(force=false) {
+    get rawCanvasRef (): RefObject<HTMLCanvasElement> {
+        return this.#canvasRef;
+    }
+
+    private updateCanvas (force = false) {
         if (this.#canvasRef.current !== this.#canvasElement || force) {
             if (this.#canvasRef.current !== null) {
                 this.changeCanvasTo(this.#canvasRef.current);
-            } else {
+            }
+            else {
                 this.#canvasElement = this.#ctx = null;
             }
         }
     }
 
-    private changeCanvasTo(canvas: HTMLCanvasElement) {
+    private changeCanvasTo (canvas: HTMLCanvasElement) {
         this.#canvasElement = canvas;
         this.#ctx = canvas.getContext('2d', {
-            alpha: this.#useTransparency
+            alpha: this.#useTransparency,
         });
 
         canvas.width = this.#width;
         canvas.height = this.#height;
 
-        if(!this.#ctx) return;
+        if (!this.#ctx) return;
 
         this.#updateCtxStrokeColor();
         this.#updateCtxFillColor();
@@ -98,12 +107,12 @@ class CanvasBase {
         this.#updateCtxFont();
     }
 
-    protected get ctx() {
+    protected get ctx () {
         this.updateCanvas();
         return this.#ctx;
     }
 
-    resizeToFitCSS() {
+    resizeToFitCSS () {
         if (this.canvas !== null) {
             let result = this.width !== this.canvas.clientWidth || this.height !== this.canvas.clientHeight;
 
@@ -115,110 +124,119 @@ class CanvasBase {
         return false;
     }
 
-    set strokeColor(color: string) {
+    set strokeColor (color: string) {
         this.#strokeColor = color;
         this.#updateCtxStrokeColor();
     }
 
-    #updateCtxStrokeColor() {
+    #updateCtxStrokeColor () {
         if (this.ctx) {
             this.ctx.strokeStyle = this.#strokeColor;
         }
     }
 
-    set fillColor(color: string) {
+    set fillColor (color: string) {
         this.#fillColor = color;
         this.#updateCtxFillColor();
     }
 
-    #updateCtxFillColor() {
+    #updateCtxFillColor () {
         if (this.ctx) {
             this.ctx.fillStyle = this.#fillColor;
         }
     }
 
-    set clearColor(color: string) {
+    set clearColor (color: string) {
         this.#clearColor = color;
     }
 
-    set strokeWidth(width: number) {
+    set strokeWidth (width: number) {
         this.#strokeWidth = width;
         this.#updateCtxStrokeWidth();
     }
 
-    #updateCtxStrokeWidth() {
+    #updateCtxStrokeWidth () {
         if (this.ctx) {
             this.ctx.lineWidth = this.#strokeWidth;
         }
     }
 
-    get strokeWidth() {
+    get strokeWidth () {
         return this.#strokeWidth;
     }
 
-    set textAlignment(alignment: TextAlignment) {
+    set textAlignment (alignment: TextAlignment) {
         this.#textAlign = alignment;
         this.#updateCtxTextAlignment();
     }
 
-    #updateCtxTextAlignment() {
+    #updateCtxTextAlignment () {
         if (this.ctx) {
-            [this.ctx.textBaseline, this.ctx.textAlign] = this.#textAlign.split(' ') as [CanvasTextBaseline, CanvasTextAlign];
+            [
+                this.ctx.textBaseline, this.ctx.textAlign,
+            ] = this.#textAlign.split(
+                ' ') as [ CanvasTextBaseline, CanvasTextAlign ];
         }
     }
 
-    set font(font: string) {
+    set font (font: string) {
         this.#font = font;
         this.#updateCtxFont();
     }
 
-    #updateCtxFont() {
-        if(this.ctx) {
+    #updateCtxFont () {
+        if (this.ctx) {
             this.ctx.font = this.#font;
         }
     }
 
-    beginNewPath() {
+    beginNewPath () {
         if (!this.ctx) return;
         this.ctx.beginPath();
     }
 
-    closeCurrentSubPath() {
+    closeCurrentSubPath () {
         if (!this.ctx) return;
         this.ctx.closePath();
     }
 
-    beginSubPathAt(x: number, y: number) {
+    beginSubPathAt (x: number, y: number) {
         if (!this.ctx) return;
-        this.ctx.moveTo(x, y)
+        this.ctx.moveTo(x, y);
     }
 
-    lineTo(x: number, y: number) {
+    lineTo (x: number, y: number) {
         if (!this.ctx) return;
         this.ctx.lineTo(x, y);
     }
 
-    arcTo(cornerX: number, cornerY: number, endX: number, endY: number, radius: number) {
+    arcTo (
+        cornerX: number, cornerY: number, endX: number, endY: number,
+        radius: number,
+    ) {
         if (!this.ctx) return;
         this.ctx.arcTo(cornerX, cornerY, endX, endY, radius);
     }
 
-    arc(x: number, y: number, r: number, a1: number, a2: number, counterclockwise = false) {
+    arc (
+        x: number, y: number, r: number, a1: number, a2: number,
+        counterclockwise = false,
+    ) {
         if (!this.ctx) return;
-        this.ctx.arc(x, y, r, a1, a2, counterclockwise)
+        this.ctx.arc(x, y, r, a1, a2, counterclockwise);
     }
 
-    stroke() {
+    stroke () {
         if (!this.ctx) return;
         this.ctx.stroke();
     }
 
-    fill() {
+    fill () {
         if (!this.ctx) return;
         this.ctx.fill();
     }
 
-    clear() {
+    clear () {
         if (!this.ctx) return;
 
         this.pushState();
@@ -234,96 +252,104 @@ class CanvasBase {
     }
 
 
-    drawImage(img: HTMLImageElement | HTMLCanvasElement, x: number, y: number) {
+    drawImage (
+        img: HTMLImageElement | HTMLCanvasElement, x: number, y: number) {
         if (!this.ctx || img.width * img.height == 0) return;
-        this.ctx.drawImage(img, x, y)
+        this.ctx.drawImage(img, x, y);
     }
 
-    drawImageOnRect(img: HTMLImageElement | HTMLCanvasElement, x1: number, y1: number, x2: number, y2: number) {
+    drawImageOnRect (
+        img: HTMLImageElement | HTMLCanvasElement, x1: number, y1: number,
+        x2: number, y2: number,
+    ) {
         if (!this.ctx || img.width * img.height == 0) return;
 
         let destwidth = ~~(x2 - x1);
         let destheight = ~~(y2 - y1);
 
-        this.ctx.drawImage(img, x1, y1, destwidth, destheight)
+        this.ctx.drawImage(img, x1, y1, destwidth, destheight);
     }
 
-    pushState() {
+    pushState () {
         if (!this.ctx) return;
         this.ctx.save();
     }
 
-    popState() {
+    popState () {
         if (!this.ctx) return;
-        this.ctx.restore()
+        this.ctx.restore();
     }
 
-    rotate(angle: number, ) {
+    rotate (angle: number) {
         if (!this.ctx) return;
         this.ctx.rotate(angle);
     }
 
-    translate(x: number, y: number) {
+    translate (x: number, y: number) {
         if (!this.ctx) return;
-        this.ctx.translate(x, y)
+        this.ctx.translate(x, y);
     }
 
-    scale(amount: number) {
+    scale (amount: number) {
         if (!this.ctx) return;
         this.ctx.scale(amount, amount);
     }
 
-    rotateAroundPoint(angle: number, x: number, y: number) {
+    rotateAroundPoint (angle: number, x: number, y: number) {
         this.translate(-x, -y);
         this.rotate(angle);
         this.translate(x, y);
     }
 
-    resetTransform() {
-        if(!this.ctx) return;
+    resetTransform () {
+        if (!this.ctx) return;
 
         this.ctx.resetTransform();
     }
 }
 
 export class Canvas extends CanvasBase {
-    line(x1: number, y1: number, x2: number, y2: number) {
+    line (x1: number, y1: number, x2: number, y2: number) {
         this.beginSubPathAt(x1, y1);
         this.lineTo(x2, y2);
     }
 
-    immediateLine(x1: number, y1: number, x2: number, y2: number) {
+    immediateLine (x1: number, y1: number, x2: number, y2: number) {
         this.beginNewPath();
         this.line(x1, y1, x2, y2);
         this.stroke();
     }
 
-    rect(x1: number, y1: number, width: number, height: number) {
+    rect (x1: number, y1: number, width: number, height: number) {
         if (!this.ctx) return;
         this.ctx.rect(x1, y1, width, height);
     }
 
-    immediateFillRect(x1: number, y1: number, width: number, height: number) {
+    immediateFillRect (x1: number, y1: number, width: number, height: number) {
         if (!this.ctx) return;
         this.ctx.fillRect(x1, y1, width, height);
     }
 
-    immediateStrokeRect(x1: number, y1: number, width: number, height: number) {
+    immediateStrokeRect (
+        x1: number, y1: number, width: number, height: number) {
         if (!this.ctx) return;
         this.ctx.strokeRect(x1, y1, width, height);
     }
 
-    circle(centerX: number, centerY: number, radius: number) {
+    circle (centerX: number, centerY: number, radius: number) {
         this.arc(centerX, centerY, radius, 0, Math.PI * 2);
     }
 
-    immediateFillCircle(centerX: number, centerY: number, radius: number) {
+    immediateFillCircle (centerX: number, centerY: number, radius: number) {
         this.beginNewPath();
         this.circle(centerX, centerY, radius);
         this.fill();
     }
 
-    immediateStrokeCircle(centerX: number, centerY: number, radius: number, adjustForLineWidth: boolean = false) {
+    immediateStrokeCircle (
+        centerX: number, centerY: number, radius: number,
+        adjustForLineWidth: boolean = false,
+    ) {
         if (adjustForLineWidth) {
             radius -= this.strokeWidth;
         }
@@ -333,54 +359,65 @@ export class Canvas extends CanvasBase {
         this.stroke();
     }
 
-    immediateFillArc(centerX: number, centerY: number, radius: number, angle1: number, angle2: number, counterclockwise = false) {
+    immediateFillArc (
+        centerX: number, centerY: number, radius: number, angle1: number,
+        angle2: number, counterclockwise = false,
+    ) {
         this.beginNewPath();
         this.arc(centerX, centerY, radius, angle1, angle2, counterclockwise);
         this.fill();
     }
 
-    immediateStrokeArc(centerX: number, centerY: number, radius: number, angle1: number, angle2: number, counterclockwise = false) {
+    immediateStrokeArc (
+        centerX: number, centerY: number, radius: number, angle1: number,
+        angle2: number, counterclockwise = false,
+    ) {
         this.beginNewPath();
         this.arc(centerX, centerY, radius, angle1, angle2, counterclockwise);
         this.stroke();
     }
 
-    immediateFillText(txt: string, x: number, y: number) {
+    immediateFillText (txt: string, x: number, y: number) {
         if (!this.ctx) return;
         this.ctx.fillText(txt, x, y);
     }
 
-    immediateStrokeText(txt: string, x: number, y: number) {
+    immediateStrokeText (txt: string, x: number, y: number) {
         if (!this.ctx) return;
         this.ctx.strokeText(txt, x, y);
     }
 
-    polygon(center: [number, number], ...pointOffsets: [number, number][]) {
+    polygon (
+        center: [ number, number ], ...pointOffsets: [ number, number ][]) {
         this.beginSubPathAt(
             pointOffsets[pointOffsets.length - 1][0] + center[0],
-            pointOffsets[pointOffsets.length - 1][1] + center[1]
+            pointOffsets[pointOffsets.length - 1][1] + center[1],
         );
 
         pointOffsets.forEach(
-            s => this.lineTo(s[0] + center[0], s[1] + center[1])
+            s => this.lineTo(s[0] + center[0], s[1] + center[1]),
         );
     }
 
-    immediateDrawPolygon(center: [number, number], ...pointOffsets: [number, number][]) {
+    immediateDrawPolygon (
+        center: [ number, number ], ...pointOffsets: [ number, number ][]) {
         this.beginNewPath();
         this.polygon(center, ...pointOffsets);
         this.stroke();
     }
 
-    immediateFillPolygon(center: [number, number], ...pointOffsets: [number, number][]) {
+    immediateFillPolygon (
+        center: [ number, number ], ...pointOffsets: [ number, number ][]) {
         this.beginNewPath();
         this.polygon(center, ...pointOffsets);
         this.stroke();
     }
 
-    roundedRect(x: number, y: number, width: number, height: number, radius: number) {
+    roundedRect (
+        x: number, y: number, width: number, height: number, radius: number) {
         const x1 = x, x2 = x + radius, x3 = x + width - radius, x4 = x + width;
-        const y1 = y, y2 = y + radius, y3 = y + height - radius, y4 = y + height;
+        const y1 = y, y2 = y + radius, y3 = y + height - radius,
+              y4 = y + height;
 
         /*
          * Corner order:
@@ -403,13 +440,15 @@ export class Canvas extends CanvasBase {
         this.closeCurrentSubPath();
     }
 
-    immediateStrokeRoundedRect(x: number, y: number, width: number, height: number, radius: number) {
+    immediateStrokeRoundedRect (
+        x: number, y: number, width: number, height: number, radius: number) {
         this.beginNewPath();
         this.roundedRect(x, y, width, height, radius);
         this.stroke();
     }
 
-    immediateFillRoundedRect(x: number, y: number, width: number, height: number, radius: number) {
+    immediateFillRoundedRect (
+        x: number, y: number, width: number, height: number, radius: number) {
         this.beginNewPath();
         this.roundedRect(x, y, width, height, radius);
         this.fill();
@@ -420,19 +459,19 @@ export class Canvas extends CanvasBase {
      * @param points
      * points to draw the curve through
      */
-    spline(...points: [number, number][]) {
+    spline (...points: [ number, number ][]) {
         if (!this.ctx) return;
 
         const f = 0.3, t = 0.6;
 
         this.beginSubPathAt(points[0][0], points[0][1]);
-        let m = 0,
-            lastDx = 0, lastDy = 0,
+        let m                  = 0,
+            lastDx             = 0, lastDy = 0,
             currDx = 0, currDy = 0;
 
         let previousPoint = points[0];
 
-        for (let i = 1; i < points.length; i++) {
+        for (let i = 1 ; i < points.length ; i++) {
             const currentPoint = points[i];
 
             const nextPoint = points[i + 1];
@@ -440,7 +479,7 @@ export class Canvas extends CanvasBase {
             if (nextPoint) {
                 m = (previousPoint[1] - currentPoint[1]) / (previousPoint[0] - currentPoint[0]);
                 currDx = -(nextPoint[0] - currentPoint[0]) * f;
-                currDy = currDx * m * t
+                currDy = currDx * m * t;
             }
 
             this.ctx.bezierCurveTo(
@@ -449,45 +488,54 @@ export class Canvas extends CanvasBase {
                 currentPoint[0] + currDx,
                 currentPoint[1] + currDy,
                 currentPoint[0],
-                currentPoint[1]
+                currentPoint[1],
             );
 
             lastDx = currDx;
             lastDy = currDy;
 
-            previousPoint = currentPoint
+            previousPoint = currentPoint;
         }
     }
 
-    immediateStrokeSpline(...points: [number, number][]) {
+    immediateStrokeSpline (...points: [ number, number ][]) {
         this.beginNewPath();
         this.spline(...points);
         this.stroke();
     }
 
-    closedSpline(...points: [number, number][]) {
+    closedSpline (...points: [ number, number ][]) {
         this.spline(...points, points[0]);
     }
 
-    immediateStrokeClosedSpline(...points: [number, number][]) {
+    immediateStrokeClosedSpline (...points: [ number, number ][]) {
         this.beginNewPath();
         this.closedSpline(...points);
         this.stroke();
     }
 
-    immediateFillClosedSpline(...points: [number, number][]) {
+    immediateFillClosedSpline (...points: [ number, number ][]) {
         this.beginNewPath();
         this.closedSpline(...points);
         this.fill();
     }
 
-    drawScaledImage(img: HTMLImageElement | HTMLCanvasElement, x: number, y: number, factor = 1) {
-        this.drawImageOnRect(img, x, y, factor * img.width, factor * img.height)
+    drawScaledImage (
+        img: HTMLImageElement | HTMLCanvasElement, x: number, y: number,
+        factor = 1,
+    ) {
+        this.drawImageOnRect(img, x, y, factor * img.width, factor * img.height);
     }
 }
 
 export enum TextAlignment {
-    TopLeft = "top left", TopCenter = "top center", TopRight = "top right",
-    CenterLeft = "middle left", Center = "middle center", CenterRight = "middle right",
-    BottomLeft = "alphabetic left", BottomCenter = "alphabetic center", BottomRight = "alphabetic right"
+    TopLeft = "top left",
+    TopCenter = "top center",
+    TopRight = "top right",
+    CenterLeft = "middle left",
+    Center = "middle center",
+    CenterRight = "middle right",
+    BottomLeft = "alphabetic left",
+    BottomCenter = "alphabetic center",
+    BottomRight = "alphabetic right"
 }
