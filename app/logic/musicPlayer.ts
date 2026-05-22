@@ -39,21 +39,24 @@ export class MusicPlayer {
         if (this.isFinished) this.#lastResumedPosition = 0;
 
         this.#isPlaying = true;
-
-        this.#player.start(now(), this.#lastResumedPosition);
         this.#lastResumedTime = now();
 
         this.onstart.call(null);
+
+        if (this.#player.state !== 'stopped') return;
+        this.#player.start(now(), this.#lastResumedPosition);
     }
 
     pause () {
-        if(!this.#isPlaying) return;
+        if (!this.#isPlaying) return;
         this.#cancelAutoResume();
-        this.#player.stop();
         this.#lastResumedPosition = this.position;
         this.#isPlaying = false;
         this.#lastResumedTime = NaN;
         this.onstop.call(null);
+
+        if (this.#player.state !== 'started') return;
+        this.#player.stop();
     }
 
     #cancelAutoResume () {
