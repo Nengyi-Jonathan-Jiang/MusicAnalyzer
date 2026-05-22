@@ -52,8 +52,8 @@ export class MusicPlayer {
     }
 
     pause () {
-        if (!this.#isPlaying) return;
         this.#cancelAutoResume();
+        if (!this.#isPlaying) return;
         this.#resumePosition = this.position;
         this.#isPlaying = false;
         this.#resumeTime = NaN;
@@ -64,7 +64,7 @@ export class MusicPlayer {
     }
 
     #cancelAutoResume () {
-        if (this.#autoResume) {
+        if (this.#autoResume !== null) {
             clearTimeout(this.#autoResume);
             this.#autoResume = null;
         }
