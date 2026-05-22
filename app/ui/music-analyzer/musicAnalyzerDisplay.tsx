@@ -177,7 +177,6 @@ export function MusicAnalyzerDisplay () {
     const onWheel = useMemo(() => (e: WheelEvent) => {
         const scrollMultiplier = (e.ctrlKey ? 2 : e.altKey ? 0.25 : 1);
         player.position += e.deltaY / 100 * scrollMultiplier;
-        console.log(scrollMultiplier);
         e.preventDefault();
     }, [ player ]);
 
