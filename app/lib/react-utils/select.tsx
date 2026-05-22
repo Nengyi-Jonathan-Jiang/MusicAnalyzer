@@ -1,7 +1,10 @@
 import {
-    ComponentType, CSSProperties, RefObject, useEffect, useRef, useState,
+    ComponentType, CSSProperties, RefObject, useEffect, useMemo, useRef,
+    useState,
 } from "react";
-import { useListenerOnWindow, useRefs } from "@/app/lib/react-utils/hooks";
+import {
+    Listener, useListenerOnWindow, useRefs,
+} from "@/app/lib/react-utils/hooks";
 
 type SelectOptionComponentProps<OptionValueType, RefType extends HTMLElement> = {
     value: OptionValueType,
@@ -84,13 +87,15 @@ export function Select<OptionValueType, ActiveOptionRefType extends HTMLElement,
     }, [ optionRefs, isOpen ]);
 
     useListenerOnWindow({
-        listenerType: "mousedown", listener: e => {
-            if (containerRef.current === null || e.target === null) return;
+        listenerType: "mousedown", listener: useMemo<Listener<MouseEvent>>(
+            () => (e) => {
+                if (containerRef.current === null || e.target === null) return;
 
-            if (!containerRef.current.contains(e.target as Node)) {
-                close();
-            }
-        },
+                if (!containerRef.current.contains(e.target as Node)) {
+                    close();
+                }
+            }, [],
+        ),
     });
 
     return <div ref={ containerRef } { ...containerProps(

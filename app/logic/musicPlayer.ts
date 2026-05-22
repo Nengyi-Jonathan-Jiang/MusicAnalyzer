@@ -1,8 +1,61 @@
-import { now, Player, ToneAudioBuffer } from "tone";
+import { getContext, now, Player, ToneAudioBuffer } from "tone";
 import { clamp } from "@/app/lib/utils/util";
 import { AudioFile } from "@/app/logic/audioFile";
+import { rawDoAnimation, useAnimation } from "@/app/lib/react-utils/hooks";
 
-export class MusicPlayer {
+class MediaSessionHelper {
+    readonly #mediaSession: MediaSession;
+    readonly #destNode: MediaStreamAudioDestinationNode;
+    readonly #audioElement: HTMLAudioElement;
+
+    constructor () {
+        this.#mediaSession = navigator.mediaSession!;
+        this.#audioElement = document.createElement("audio");
+        this.#audioElement.setAttribute('controls','')
+        this.#destNode = getContext().createMediaStreamDestination();
+        this.#audioElement.srcObject = this.#destNode.stream;
+
+
+        (window as any)['audio'] = this.#audioElement
+    }
+
+    setPlayer (player: MusicPlayer) {
+        player.rawOutputNode.connect(this.#destNode);
+        this.#audioElement.addEventListener('pause', () => {
+            player.pause();
+        })
+        this.#audioElement.addEventListener('play', () => {
+            player.play();
+        })
+    };
+
+    update(player: MusicPlayer) {
+        this.#mediaSession.setPositionState({
+            duration: player.duration,
+            position: player.position
+        })
+    }
+
+    play () {
+        this.#audioElement.play();
+        this.#mediaSession.metadata = new MediaMetadata({
+            title:   'Music Analyzer',
+            album:   'Unknown',
+            artist:  'Unknown',
+            artwork: [],
+        });
+    }
+
+    pause () {
+        this.#audioElement.pause();
+    }
+}
+
+const mediaSessionHelper = 'mediaSession' in navigator
+    ? new MediaSessionHelper
+    : new Proxy({}, { get () {return () => void 0;} }) as MediaSessionHelper;
+
+class MusicPlayer {
     readonly #player: Player;
     #audio: AudioFile;
 
@@ -19,15 +72,23 @@ export class MusicPlayer {
 
     constructor () {
         this.#player = new Player();
-        this.#player.toDestination();
+        // this.#player.toDestination();
         this.#audio = new AudioFile(new ToneAudioBuffer());
         this.#player.onstop = () => {
             if (!this.#isPlaying) return;
+
+            if(this.#lastResumedTime + this.#playTimeSinceResumed >= this.duration) {
+                this.#lastResumedPosition = this.duration;
+            }
 
             this.#isPlaying = false;
             this.#lastResumedTime = NaN;
             this.onstop.call(null);
         };
+
+        // set up media session api
+        mediaSessionHelper.setPlayer(this);
+        rawDoAnimation(() => mediaSessionHelper.update(this));
     }
 
     get duration () {
@@ -45,6 +106,7 @@ export class MusicPlayer {
 
         if (this.#player.state !== 'stopped') return;
         this.#player.start(now(), this.#lastResumedPosition);
+        mediaSessionHelper.play();
     }
 
     pause () {
@@ -57,11 +119,11 @@ export class MusicPlayer {
 
         if (this.#player.state !== 'started') return;
         this.#player.stop();
+        mediaSessionHelper.pause();
     }
 
     #cancelAutoResume () {
         if (this.#autoResume) {
-            console.log('canceled auto resume');
             clearTimeout(this.#autoResume);
             this.#autoResume = null;
         }
@@ -69,22 +131,16 @@ export class MusicPlayer {
 
     #scheduleAutoResume () {
         this.#cancelAutoResume();
-        console.log('schedule auto resume');
         const r = this.#autoResume = setTimeout(() => {
-            console.log('auto resume executed');
             this.play();
             if (this.#autoResume === r) {
-                console.log('clear own auto resume');
                 clearTimeout(r);
                 this.#autoResume = null;
-            }
-            else {
-                console.log('other auto resume already in progress');
             }
         }, MusicPlayer.#autoResumeDelay);
     }
 
-    get #playTimeSinceLastStarted () {
+    get #playTimeSinceResumed () {
         if (!this.#isPlaying) return 0;
         return now() - this.#lastResumedTime;
     }
@@ -115,7 +171,7 @@ export class MusicPlayer {
 
     get position () {
         return this.isPlaying ? clamp(
-            this.#lastResumedPosition + this.#playTimeSinceLastStarted,
+            this.#lastResumedPosition + this.#playTimeSinceResumed,
             0, this.duration,
         ) : this.#lastResumedPosition;
     }
@@ -137,9 +193,16 @@ export class MusicPlayer {
         this.rewind();
         this.#player.buffer = audio.buffer;
         this.#audio = audio;
+        mediaSessionHelper.update(this);
     }
 
     get isAudioLoaded () {
         return this.audio.buffer.loaded;
     }
+
+    get rawOutputNode () {
+        return this.#player;
+    }
 }
+
+export const musicPlayer = new MusicPlayer();

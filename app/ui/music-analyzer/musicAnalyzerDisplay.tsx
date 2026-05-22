@@ -6,9 +6,9 @@ import { MusicAnalyzer } from "@/app/logic/analyzer";
 import { clamp, useManualRerender } from "@/app/lib/utils/util";
 
 import "./musicAnalyzer.css";
-import { MusicPlayer } from "@/app/logic/musicPlayer";
+import { musicPlayer } from "@/app/logic/musicPlayer";
 import {
-    useAnimation, useListenerOnElement, useListenerOnWindow,
+    Listener, useAnimation, useListenerOnElement, useListenerOnWindow,
 } from "@/app/lib/react-utils/hooks";
 import { Canvas, TextAlignment } from "@/app/lib/canvas";
 import { NumberRange } from "@/app/lib/utils/numberRange";
@@ -131,8 +131,9 @@ function redraw (canvas: Canvas, analyzer: MusicAnalyzer) {
 
 export function MusicAnalyzerDisplay () {
     const [ analyzer ] = useState(() => {
-        return new MusicAnalyzer(new MusicPlayer());
+        return new MusicAnalyzer(musicPlayer);
     });
+
     const { player } = analyzer;
 
     const rerender = useManualRerender();
@@ -142,7 +143,7 @@ export function MusicAnalyzerDisplay () {
     useListenerOnWindow({
         listenerType: [
             "mousedown", "keypress",
-        ], listener:  () => start(),
+        ], listener:  start,
     });
 
     const ref = useRef<HTMLSpanElement>(null);
@@ -161,17 +162,19 @@ export function MusicAnalyzerDisplay () {
     }, []));
 
     useListenerOnWindow({
-        listenerType: 'keydown', listener: e => {
-            if (e.key === 'space') {
-                e.preventDefault();
-                if (player.isPlaying) player.pause();
-                else player.play();
-            }
-            else if (e.key === 'LeftArrow') {
-                e.preventDefault();
-                player.position -= 5;
-            }
-        },
+        listenerType: 'keydown', listener: useMemo<Listener<KeyboardEvent>>(
+            () => e => {
+                if (e.key === ' ') {
+                    e.preventDefault();
+                    if (player.isPlaying) player.pause();
+                    else player.play();
+                }
+                else if (e.key === 'LeftArrow') {
+                    e.preventDefault();
+                    player.position -= 5;
+                }
+            }, [ player ],
+        ),
     });
 
     const onWheel = useMemo(() => (e: WheelEvent) => {
@@ -297,7 +300,7 @@ export function MusicAnalyzerDisplay () {
                 );
 
                 canvas.stroke();
-            } } ref={canvasRef}/>
+            } } ref={ canvasRef }/>
         </div>
         <div id="spectrum">
             <AnimatedCanvas initializer={ canvas => {

@@ -1,12 +1,12 @@
-import {RefObject, useEffect, useState, DependencyList} from "react";
+import { DependencyList, RefObject, useEffect, useState } from "react";
 
-function createRefList<T>(amount: number) : RefObject<T>[] {
-    return new Array<null>(amount).fill(null).map(() => ({current: null}))
+function createRefList<T> (amount: number): RefObject<T>[] {
+    return new Array<null>(amount).fill(null).map(() => ({ current: null }));
 }
 
-export function useRefs<T>(amount: number) : RefObject<T>[] {
-    const [refList, setRefList] = useState(() => createRefList<T>(amount));
-    if(amount !== refList.length) {
+export function useRefs<T> (amount: number): RefObject<T>[] {
+    const [ refList, setRefList ] = useState(() => createRefList<T>(amount));
+    if (amount !== refList.length) {
         setRefList(createRefList(amount));
     }
     return refList;
@@ -15,40 +15,52 @@ export function useRefs<T>(amount: number) : RefObject<T>[] {
 let isCurrentlyAnimating = false;
 let animations = new Set<(t: DOMHighResTimeStamp) => any>;
 
-function startAnimatingIfNotAnimating() {
-    if(isCurrentlyAnimating) return;
+function startAnimatingIfNotAnimating () {
+    if (isCurrentlyAnimating) return;
     isCurrentlyAnimating = true;
 
-    requestAnimationFrame(function f(t){
-        if(animations.size > 0) {
+    requestAnimationFrame(function f (t) {
+        if (animations.size > 0) {
             animations.forEach(callback => callback.call(null, t));
-            requestAnimationFrame(f)
+            requestAnimationFrame(f);
         }
         else {
             isCurrentlyAnimating = false;
         }
-    })
-}
-
-export function useAnimation(callback: (currTime: number, deltaTime: number) => any) {
-    useEffect(() => {
-        let lastFrameTime : number | undefined = undefined;
-
-        const f = (time: DOMHighResTimeStamp) => {
-            const currTime = time / 1000;
-            lastFrameTime ??= currTime;
-            const deltaTime = currTime - lastFrameTime;
-            lastFrameTime = currTime;
-
-            callback.call(null, currTime, deltaTime);
-        }
-
-        animations.add(f);
-        startAnimatingIfNotAnimating();
-
-        return () => { animations.delete(f) };
     });
 }
+
+type AnimationCallback = (currTime: number, deltaTime: number) => any;
+
+export function useAnimation (callback: AnimationCallback) {
+    useEffect(() => {return rawDoAnimation(callback);});
+}
+
+export function rawDoAnimation (callback: AnimationCallback): () => any {
+    let lastFrameTime: number | undefined = undefined;
+
+    const f = (time: DOMHighResTimeStamp) => {
+        const currTime = time / 1000;
+        lastFrameTime ??= currTime;
+        const deltaTime = currTime - lastFrameTime;
+        lastFrameTime = currTime;
+
+        callback.call(null, currTime, deltaTime);
+    };
+
+    animations.add(f);
+    startAnimatingIfNotAnimating();
+
+    return () => { animations.delete(f); };
+}
+
+export type Listener<T extends Event | keyof WindowEventMap | keyof HTMLElementEventMap> =
+    T extends Event ? (e: T) => void :
+        T extends keyof HTMLElementEventMap
+            ? (e: HTMLElementEventMap[T]) => void
+            :
+            T extends keyof WindowEventMap ? (e: WindowEventMap[T]) => void :
+                never;
 
 export function useListenerOnWindow<K extends keyof WindowEventMap> (
     { listenerType, listener, passive }: {
@@ -58,10 +70,11 @@ export function useListenerOnWindow<K extends keyof WindowEventMap> (
     },
     dependencies?: DependencyList,
 ): void {
+    const listenerTypes = Array.isArray(listenerType)
+        ? listenerType
+        : [ listenerType ];
+
     useEffect(() => {
-        const listenerTypes = Array.isArray(listenerType)
-            ? listenerType
-            : [ listenerType ];
         if (globalThis["window"]) {
             const window: Window = globalThis["window"];
 
@@ -82,7 +95,7 @@ export function useListenerOnWindow<K extends keyof WindowEventMap> (
                 }
             };
         }
-    }, dependencies ?? []);
+    }, [ ...(dependencies ?? []), listener, ...listenerTypes, passive ]);
 }
 
 export function useListenerOnElement<K extends keyof HTMLElementEventMap> (
@@ -93,13 +106,13 @@ export function useListenerOnElement<K extends keyof HTMLElementEventMap> (
         passive?: boolean
     }, dependencies?: DependencyList,
 ): void {
+    const listenerTypes = Array.isArray(listenerType)
+        ? listenerType
+        : [ listenerType ];
+    const el: HTMLElement | null = element instanceof HTMLElement
+        ? element
+        : element.current;
     useEffect(() => {
-        const el: HTMLElement | null = element instanceof HTMLElement
-            ? element
-            : element.current;
-        const listenerTypes = Array.isArray(listenerType)
-            ? listenerType
-            : [ listenerType ];
         if (el) {
             // Remove existing instances of listener if they exist
             for (const listenerType of listenerTypes) {
@@ -118,5 +131,5 @@ export function useListenerOnElement<K extends keyof HTMLElementEventMap> (
                 }
             };
         }
-    }, [ element, ...(dependencies ?? []) ]);
+    }, [ el, ...listenerTypes, listener, passive, ...(dependencies ?? []) ]);
 }
