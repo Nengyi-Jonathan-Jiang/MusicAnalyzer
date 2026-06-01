@@ -5,7 +5,7 @@ import { useListenerOnWindow } from "@/app/lib/react-utils/hooks";
 
 
 export function Uploader ({ callback, fileTypes, labelProps, inputProps }: {
-    callback: (url: string, revokeURL: () => void) => any,
+    callback: (url: string, onLoad: () => void) => any,
     fileTypes: string[],
     labelProps?: DetailedHTMLProps<LabelHTMLAttributes<HTMLLabelElement>, HTMLLabelElement>,
     inputProps?: DetailedHTMLProps<InputHTMLAttributes<HTMLInputElement>, HTMLInputElement>,
@@ -47,7 +47,10 @@ export function Uploader ({ callback, fileTypes, labelProps, inputProps }: {
     });
 
     return <label { ...labelProps }>
-        <input type="file" accept={ fileTypes.join(', ') }
-               onChange={ onUpload } { ...inputProps }/>
+        <input type="file"
+               accept={ fileTypes.join(', ') }
+               onChange={ onUpload }
+               { ...inputProps }
+        />
     </label>;
 }

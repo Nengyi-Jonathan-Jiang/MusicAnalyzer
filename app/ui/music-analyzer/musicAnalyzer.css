@@ -1,38 +1,38 @@
 #music-analyzer {
-    width: 100%;
-    max-height: 100%;
-    display: flex;
-    flex-direction: column;
+    width:           100%;
+    max-height:      100%;
+    display:         flex;
+    flex-direction:  column;
     justify-content: left;
 
-    padding: 5px;
+    padding:         5px;
 }
 
-#music-analyzer>div {
-    padding: 10px;
-    margin: 5px;
+#music-analyzer > div {
+    padding:          10px;
+    margin:           5px;
     background-color: var(--bg-color-light);
 }
 
 #playback-controls {
-    display: flex;
+    display:     flex;
     align-items: center;
 }
 
-#spectrum>canvas {
-    width: 100%;
-    height: auto;
+#spectrum > canvas {
+    width:        100%;
+    height:       auto;
     aspect-ratio: 4;
 }
 
 #waveform {
-    max-height: 25vw;
+    max-height:  25vw;
     flex-shrink: 1;
-    height: fit-content;
+    height:      fit-content;
 }
 
-#waveform>canvas {
-    width: 100%;
+#waveform > canvas {
+    width:  100%;
     height: 100%;
 }
 
@@ -40,68 +40,92 @@
     display: flex;
 }
 
-#current-position-display>span:nth-child(2) {
-    display: inline-block;
-    width: 4em;
-    min-width: 4em;
+#current-position-display > span:nth-child(2) {
+    display:    inline-block;
+    width:      4em;
+    min-width:  4em;
     text-align: right;
 }
 
 .divider {
-    flex-grow: 1;
-    display: flex;
+    flex-grow:       1;
+    display:         flex;
     justify-content: space-between;
-    height: 30px;
+    height:          30px;
 }
 
 .divider::before, .divider::after {
-    content: "";
-    display: block;
-    width: 1px;
-    height: 100%;
+    content:          "";
+    display:          block;
+    width:            1px;
+    height:           100%;
     background-color: var(--medium-color);
-    margin: 0 10px;
+    margin:           0 1em;
+}
+
+.small-divider {
+    flex-grow: 0;
+    display: inline-block;
+    width: 1px;
+    height: 30px;
+    background-color: var(--medium-color);
+    margin:           0 1em;
 }
 
 #uploader {
-    padding: 5px;
-    outline: 1px solid white;
-    margin-right: 20px;
+    padding:      5px;
+    outline:      1px solid white;
 }
 
-#uploader>input[type="file"] {
+#uploader > input[type="file"] {
     display: none;
 }
 
 #uploader::before {
-    content: "Upload file"
+    content: "Upload";
+    padding-inline: .2em;
 }
 
-#current-position-adjust>button {
+#current-position-adjust > button {
     font-family: 'JetBrains Mono', monospace;
-    font-size: 110%;
-    padding: 2px;
+    font-size:   110%;
+    padding:     2px;
+}
+
+#uploader, #rewind-button, #playpause-button {
+    margin-right: 20px;
 }
 
 #rewind-button, #playpause-button {
     font-family: 'JetBrains Mono', monospace;
-    margin-right: 20px;
-    font-size: 90%;
+    font-size:   90%;
 }
 
-#spectral-resolution {
-    display: flex;
+.slider {
+    display:     flex;
     align-items: center;
 }
 
-#spectral-resolution>span:first-child {
+:is(.slider) > span:first-child {
     margin-right: 5px;
 }
 
-#spectral-resolution>span:last-child {
-    display: inline-block;
-    min-width: 4.5em;
-    max-width: 4.5em;
+:is(.slider) > span {
+    display:    flex;
+    justify-content: end;
+    align-items: center;
+}
+
+.slider {
+    --text-width: 5em;
+}
+
+.slider > span:last-child {
+    min-width:  var(--text-width);
+    max-width:  var(--text-width);
+    width:      var(--text-width);
+}
+
+input[type="range"] {
     width: 4.5em;
-    text-align: end;
 }

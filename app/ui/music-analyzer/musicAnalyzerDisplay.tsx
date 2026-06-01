@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { start, ToneAudioBuffer } from "tone";
+import { ReactElement, useEffect, useMemo, useRef, useState } from "react";
+import { start } from "tone";
 import { MusicAnalyzer } from "@/app/logic/analyzer";
 import { clamp, useManualRerender } from "@/app/lib/utils/util";
 
@@ -21,12 +21,9 @@ import {
     freqToMidiConvertor, midiNoteValueToString,
 } from "@/app/ui/music-analyzer/midiHelpers";
 import { AnimatedCanvas } from "@/app/ui/music-analyzer/animatedCanvas";
-import { Uploader } from "@/app/ui/music-analyzer/uploader";
-import { AudioFile } from "@/app/logic/audioFile";
-import { AudioReconstructor } from "@/app/logic/audioReconstructor";
+import { Controls, handlePositionWheel } from "@/app/ui/music-analyzer/controls";
 
-const frequencyRange =
-          new NumberRange(27.5, 4200);
+const frequencyRange = new NumberRange(27.5, 4200);
 
 const freqToDisplayFractionConvertor = LinearValueConvertor.normalizingAfter(
     frequencyRange,
@@ -51,7 +48,7 @@ function redraw (canvas: Canvas, analyzer: MusicAnalyzer) {
 
     const data = new Float32Array(
         analyzer.analysisData.map(
-            i => Math.log(i),
+            i => i,
         ),
     );
     const relevantBinIndexRange = analyzer.getBinIndexRangeForFrequencies(
@@ -131,7 +128,7 @@ function redraw (canvas: Canvas, analyzer: MusicAnalyzer) {
 
 export function MusicAnalyzerDisplay () {
     const [ analyzer ] = useState(() => {
-        return new MusicAnalyzer(new MusicPlayer());
+        return new MusicAnalyzer(new MusicPlayer(), 12, 0.4);
     });
     const { player } = analyzer;
 
@@ -145,20 +142,7 @@ export function MusicAnalyzerDisplay () {
         ], listener:  start,
     });
 
-    const ref = useRef<HTMLSpanElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
-
-    useEffect(() => {
-        if (ref.current) ref.current.innerText = '0.000';
-    }, []);
-
-    useAnimation(useMemo(() => () => {
-        if (ref.current) {
-            ref.current.innerText = `${ player.position.toFixed(2) }`;
-        }
-
-        analyzer.reAnalyze();
-    }, []));
 
     useListenerOnWindow({
         listenerType: 'keydown', listener: useMemo<Listener<KeyboardEvent>>(
@@ -176,71 +160,16 @@ export function MusicAnalyzerDisplay () {
         ),
     });
 
-    const onWheel = useMemo(() => (e: WheelEvent) => {
-        const scrollMultiplier = (e.ctrlKey ? 2 : e.altKey ? 0.25 : 1);
-        player.position += e.deltaY / 100 * scrollMultiplier;
-        e.preventDefault();
-    }, [ player ]);
 
-    useListenerOnElement(ref, {
-        listenerType: 'wheel', listener: onWheel,
-        passive:      false,
-    });
     useListenerOnElement(canvasRef, {
-        listenerType: 'wheel', listener: onWheel,
+        listenerType: 'wheel', listener: useMemo(
+            () => (e: WheelEvent) => handlePositionWheel(e, player), [ player]
+        ),
         passive:      false,
     });
 
     return <div id="music-analyzer">
-        <div id="playback-controls">
-            <Uploader callback={ (url, revokeURL) => {
-                console.log(`Loading ${ url }`);
-                player.audio = new AudioFile(
-                    new ToneAudioBuffer(url, revokeURL));
-            } } fileTypes={ [ ".mp3", ".wav" ] }
-                      labelProps={ { id: "uploader" } }/>
-
-            <button id="rewind-button" onClick={ () => {
-                player.rewind();
-            } }>{ "<||" }</button>
-            <button id="playpause-button" onClick={ () => {
-                if (player.isPlaying) player.pause();
-                else player.play();
-            } }>{ player.isPlaying ? "||" : "|>" }</button>
-
-            <div id="current-position-display">
-                <span>Current position: </span>
-                <span ref={ ref }>{ `${ player.position.toFixed(2) }` }</span>
-            </div>
-
-            <div className="divider"></div>
-
-            <label id="spectral-resolution">
-                <span>Spectral resolution: </span>
-                <input type="range" min="10" max="16" step="1" defaultValue="12"
-                       onInput={ ({ target }) => {
-                           analyzer.resolution = +(target as HTMLInputElement).value;
-                           ((target as HTMLElement).nextElementSibling as HTMLElement).innerText = [
-                               "Fastest",
-                               "Faster",
-                               "Balanced",
-                               "Fine",
-                               "Finer",
-                               "Super",
-                               "Best",
-                           ][analyzer.resolution - 10];
-                       } }/>
-                <span>{ [
-                    "Fastest",
-                    "Faster",
-                    "Balanced",
-                    "Fine",
-                    "Finer",
-                    "Super",
-                    "Best",
-                ][analyzer.resolution - 10] }</span>
-            </label>
-        </div>
+        <Controls analyzer={analyzer}/>
         <div id="waveform">
             <AnimatedCanvas onClick={ (e) => {
                 const bb = (e.target as HTMLCanvasElement).getBoundingClientRect();
@@ -299,7 +228,7 @@ export function MusicAnalyzerDisplay () {
                 );
 
                 canvas.stroke();
-            } } ref={canvasRef}/>
+            } } ref={ canvasRef }/>
         </div>
         <div id="spectrum">
             <AnimatedCanvas initializer={ canvas => {
@@ -312,15 +241,6 @@ export function MusicAnalyzerDisplay () {
                 canvas.resizeToFitCSS();
                 redraw(canvas, analyzer);
             } }/>
-        </div>
-        <div id="reconstruct">
-            <button onClick={ (e) => {
-                const reconstruct = new AudioReconstructor();
-                reconstruct.set_data(analyzer);
-                reconstruct.start();
-                reconstruct.stop(2);
-            } }>Reconstructed
-            </button>
         </div>
     </div>;
 }

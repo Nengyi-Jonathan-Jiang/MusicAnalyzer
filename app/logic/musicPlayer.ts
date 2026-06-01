@@ -1,9 +1,10 @@
-import { now, Player, ToneAudioBuffer } from "tone";
+import { Gain, getContext, now, Player, ToneAudioBuffer } from "tone";
 import { clamp } from "@/app/lib/utils/util";
 import { AudioFile } from "@/app/logic/audioFile";
 
 export class MusicPlayer {
     readonly #player: Player;
+    readonly #gain: Gain;
     #audio: AudioFile;
 
     #resumeTime: number = NaN;
@@ -17,9 +18,13 @@ export class MusicPlayer {
     public onstop: () => any = () => void 0;
     public onstart: () => any = () => void 0;
 
+    #volume: number = 1;
+
     constructor () {
         this.#player = new Player();
-        this.#player.toDestination();
+        this.#gain = new Gain(1, "gain");
+        this.#player.connect(this.#gain);
+        this.#gain.toDestination();
         this.#audio = new AudioFile(new ToneAudioBuffer());
         this.#player.onstop = () => {
             if (!this.#isPlaying) return;
@@ -31,6 +36,9 @@ export class MusicPlayer {
             this.#isPlaying = false;
             this.#resumeTime = NaN;
             this.onstop.call(null);
+
+            this.#resumePosition = 0;
+            this.#scheduleAutoResume()
         };
     }
 
@@ -112,6 +120,15 @@ export class MusicPlayer {
         ) : this.#resumePosition;
     }
 
+    get volume (): number {
+        return this.#volume;
+    }
+
+    set volume (value: number) {
+        this.#volume = value;
+        this.#gain.gain.exponentialRampTo(value, 0.5);
+    }
+
     rewind () {
         this.pause();
         this.position = 0;
@@ -133,5 +150,9 @@ export class MusicPlayer {
 
     get isAudioLoaded () {
         return this.audio.buffer.loaded;
+    }
+
+    get sampleRate() {
+        return getContext().sampleRate
     }
 }
