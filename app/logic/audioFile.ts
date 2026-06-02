@@ -1,18 +1,35 @@
-import {ToneAudioBuffer} from "tone";
+import { ToneAudioBuffer } from "tone";
 
-const emptyArray = new Float32Array(2 << 14);
+const emptyArray = new Float32Array(2 << 16);
 
 export class AudioFile {
     public readonly buffer: ToneAudioBuffer;
     private _arr: Float32Array | null = null;
 
-    get arr(): Readonly<Float32Array> {
+    get arr (): Readonly<Float32Array> {
         if (this._arr === null) {
             if (!this.buffer.loaded) {
                 return emptyArray;
             }
-            let arr = this.buffer.toArray(0);
-            this._arr = arr instanceof Float32Array ? arr : arr[0];
+
+            let arr = this.buffer.toArray();
+
+            // Collapse stereo to mono for analysis
+            if (!(arr instanceof Float32Array)) {
+                const channels = arr;
+                arr = new Float32Array(channels[0].length);
+                for (const channel of channels) {
+                    for (let i = 0 ; i < arr.length ; i++) {
+                        arr[i] += channel[i];
+                    }
+                }
+
+                for (let i = 0 ; i < arr.length ; i++) {
+                    arr[i] /= channels.length;
+                }
+            }
+
+            this._arr = arr;
         }
         return this._arr;
     }
@@ -20,13 +37,16 @@ export class AudioFile {
     /**
      * Creates a slice of the data up to a point
      */
-    public getData(time: number, samples: number) {
-        // We are doing a window of 2 * samples because each sample spans over two indices (real and imaginary parts)
-        let index_center = Math.round(time * this.buffer.sampleRate);
+    public getData (time: number, samples: number) {
+        // We are doing a window of 2 * samples because each sample spans over
+        // two indices (real and imaginary parts)
+        let index_center = Math.round(
+            time * this.buffer.sampleRate - samples * 0.5);
         let index_start = index_center - samples;
         let index_end = index_center + samples;
 
-        if (index_start >= this.arr.length) return new Float32Array(samples * 2);
+        if (index_start >= this.arr.length) return new Float32Array(
+            samples * 2);
 
         let padding_amount_before = Math.max(-index_start, 0);
         let padding_amount_after = Math.max(index_end - this.arr.length, 0);
@@ -37,15 +57,19 @@ export class AudioFile {
             return new Float32Array([
                 ...new Array(padding_amount_before).fill(0),
                 ...this.arr.subarray(index_start, index_end),
-                ...new Array(padding_amount_after).fill(0)
+                ...new Array(padding_amount_after).fill(0),
             ]);
-        } catch (e) {
-            console.log(index_start, index_end, padding_amount_before, padding_amount_after);
+        }
+        catch (e) {
+            console.log(
+                index_start, index_end, padding_amount_before,
+                padding_amount_after,
+            );
             throw e;
         }
     }
 
-    constructor(buffer: ToneAudioBuffer) {
+    constructor (buffer: ToneAudioBuffer) {
         this.buffer = buffer;
     }
 }

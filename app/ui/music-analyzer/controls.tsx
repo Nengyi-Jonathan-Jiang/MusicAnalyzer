@@ -11,6 +11,7 @@ import {
 import {
     NumericValueConvertor, powTransform, ValueConvertor,
 } from "@/app/lib/utils/valueConvertor";
+import { createArray } from "@/app/lib/utils/util";
 
 const SUPPORTED_AUDIO_FORMATS: string[] = [
     ".mp3", ".m4a", ".mp4", ".wav", ".ogg", ".webm", ".flac",
@@ -45,7 +46,9 @@ export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
     return <div id="playback-controls">
         <Uploader
             callback={ (url, onLoad) => {
-                player.audio = new AudioFile(new ToneAudioBuffer(url, onLoad));
+                // Need to convert to mono
+                let buffer = new ToneAudioBuffer(url, onLoad);
+                player.audio = new AudioFile(buffer);
             } }
             fileTypes={ SUPPORTED_AUDIO_FORMATS }
             labelProps={ { id: "uploader" } }/>

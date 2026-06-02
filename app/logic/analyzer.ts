@@ -72,7 +72,7 @@ export class MusicAnalyzer {
     #smoothing: number;
 
     constructor (
-        player: MusicPlayer, fftResolution: number = 12, smoothing = 0.6,
+        player: MusicPlayer, fftResolution: number = 12, smoothing = 0.5,
     ) {
         this.#player = player;
         this.#resolution = fftResolution;
@@ -139,6 +139,15 @@ export class MusicAnalyzer {
     reAnalyze () {
         if (!this.player.isAudioLoaded) return;
 
+        // Figure out how much smoothing to use
+        const elapsedTime = now() - this.#prevAnalysisTime;
+        this.#prevAnalysisTime += elapsedTime;
+        const adjustedDecayTime = Math.max(
+            0.03, // This is a reasonable minimum decay time from experimenting
+            this.#getAdjustedDecayTime(),
+        );
+
+        // Compute
         let result = getFFT(
             this.player.audio,
             this.player.position,
@@ -147,15 +156,6 @@ export class MusicAnalyzer {
         if (result === null) return;
 
         const { mag: newData } = result;
-
-        const elapsedTime = now() - this.#prevAnalysisTime;
-        this.#prevAnalysisTime += elapsedTime;
-
-        // But make sure we don't have zero smoothing!
-        const adjustedDecayTime = Math.max(
-            0.1, // This is a reasonable minimum decay time from experimenting
-            this.#getAdjustedDecayTime(),
-        );
 
         if (this.#analysisData.length !== newData.length) {
             this.#analysisData = newData.map(i => log(i));
@@ -168,7 +168,11 @@ export class MusicAnalyzer {
 
                     if (isNaN(oldValue) || !isFinite(oldValue)) return newValue;
 
-                    const a = exp(-elapsedTime / adjustedDecayTime);
+                    const a = Math.max(
+                        0.3, // Again reasonable I think
+                        exp(-elapsedTime / adjustedDecayTime)
+                    );
+
                     return newValue + (oldValue - newValue) * a;
                 }),
             );

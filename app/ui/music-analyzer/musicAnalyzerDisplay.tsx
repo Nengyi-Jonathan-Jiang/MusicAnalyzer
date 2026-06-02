@@ -128,7 +128,7 @@ function redraw (canvas: Canvas, analyzer: MusicAnalyzer) {
 
 export function MusicAnalyzerDisplay () {
     const [ analyzer ] = useState(() => {
-        return new MusicAnalyzer(new MusicPlayer(), 12, 0.4);
+        return new MusicAnalyzer(new MusicPlayer());
     });
     const { player } = analyzer;
 
