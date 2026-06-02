@@ -78,7 +78,8 @@ export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
             { doRepeat ? <RepeatEnabledIcon/> : <RepeatDisabledIcon/> }
         </button>
 
-        <label id="current-position-display">
+        <label id="current-position-display"
+               style={ { "--text-width": '3.5em' } as any }>
             <span>Current position: </span>
             <span
                 ref={ ref }>{ `${ player.position.toFixed(
@@ -128,12 +129,6 @@ export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
     </div>;
 }
 
-export function handlePositionWheel (e: WheelEvent, player: MusicPlayer) {
-    const scrollMultiplier = (e.ctrlKey ? 2 : e.altKey ? 0.25 : 1);
-    player.position += e.deltaY / 100 * scrollMultiplier;
-    e.preventDefault();
-}
-
 /**
  * @param convertor Converts slider values to what gets passed to setValue.
  *                  The backwards conversion is applied to `value`
@@ -172,4 +167,11 @@ function Slider ({
             { displayText(convertor.convertBackwards(value)) }
         </span>
     </label>;
+}
+
+export function handlePositionWheel (e: WheelEvent, player: MusicPlayer) {
+    if (e.ctrlKey) return;
+    const scrollMultiplier = (e.altKey ? 0.1 : 1);
+    player.position += e.deltaY / 100 * scrollMultiplier;
+    e.preventDefault();
 }

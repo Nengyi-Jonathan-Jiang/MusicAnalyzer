@@ -6,7 +6,6 @@
     left: 0;
     top: 0;
 
-    background-color: var(--bg-color-dark);
     color: var(--fg-color);
     font-family: Nunito, sans-serif;
     font-size: 16px;
@@ -35,7 +34,7 @@
 
 .loading-screen-text {
     position: absolute;
-    bottom: 16px;
+    bottom: 2em;
 }
 
 .loading-screen-spinner {

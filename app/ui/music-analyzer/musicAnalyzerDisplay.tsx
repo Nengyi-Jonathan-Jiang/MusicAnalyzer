@@ -241,5 +241,6 @@ export function MusicAnalyzerDisplay () {
                 redraw(canvas, analyzer);
             } }/>
         </div>
+        <span id='music-analyzer-end'/>
     </div>;
 }
