@@ -27,6 +27,8 @@ export class AudioFile {
                 for (let i = 0 ; i < arr.length ; i++) {
                     arr[i] /= channels.length;
                 }
+
+                this.buffer.fromArray(arr);
             }
 
             this._arr = arr;

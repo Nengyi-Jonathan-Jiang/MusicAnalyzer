@@ -3,7 +3,7 @@ import { ToneAudioBuffer } from "tone";
 import { AudioFile } from "@/app/logic/audioFile";
 import { Uploader } from "@/app/ui/music-analyzer/uploader";
 import { NumberRange } from "@/app/lib/utils/numberRange";
-import { ReactElement, useEffect, useMemo, useRef } from "react";
+import { ReactElement, useEffect, useMemo, useRef, useState } from "react";
 import { MusicAnalyzer } from "@/app/logic/analyzer";
 import {
     useAnimation, useListenerOnElement,
@@ -11,7 +11,14 @@ import {
 import {
     NumericValueConvertor, powTransform, ValueConvertor,
 } from "@/app/lib/utils/valueConvertor";
-import { createArray } from "@/app/lib/utils/util";
+
+import "./controls.css";
+
+import PauseIcon from '@/app/icon/pause.svg';
+import PlayIcon from '@/app/icon/play.svg';
+import RepeatEnabledIcon from '@/app/icon/repeat-enabled.svg';
+import RepeatDisabledIcon from '@/app/icon/repeat-disabled.svg';
+import RewindIcon from '@/app/icon/rewind.svg';
 
 const SUPPORTED_AUDIO_FORMATS: string[] = [
     ".mp3", ".m4a", ".mp4", ".wav", ".ogg", ".webm", ".flac",
@@ -19,6 +26,7 @@ const SUPPORTED_AUDIO_FORMATS: string[] = [
 
 export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
     const player = analyzer.player;
+    const [ doRepeat, setDoRepeat ] = useState(player.doRepeat);
 
     const ref = useRef<HTMLSpanElement>(null);
     useEffect(() => {
@@ -29,7 +37,10 @@ export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
 
     useAnimation(useMemo(() => () => {
         if (ref.current) {
-            ref.current.innerText = `${ player.position.toFixed(2) }`;
+            const s = `${ player.position.toFixed(2) }`;
+            if (ref.current.innerText !== s) {
+                ref.current.innerText = s;
+            }
         }
         analyzer.reAnalyze();
     }, []));
@@ -55,20 +66,28 @@ export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
 
         <button id="rewind-button" onClick={ () => {
             player.rewind();
-        } }>{ "<||" }</button>
+        } }>{ <RewindIcon/> }</button>
         <button id="playpause-button" onClick={ () => {
             if (player.isPlaying) player.pause();
             else player.play();
-        } }>{ player.isPlaying ? "||" : "|>" }</button>
+        } }>{ player.isPlaying ? <PauseIcon/> : <PlayIcon/> }</button>
 
-        <div id="current-position-display">
+        <button id="repeat-button" onClick={ () => {
+            setDoRepeat(player.doRepeat = !player.doRepeat);
+        } }>
+            { doRepeat ? <RepeatEnabledIcon/> : <RepeatDisabledIcon/> }
+        </button>
+
+        <label id="current-position-display">
             <span>Current position: </span>
             <span
                 ref={ ref }>{ `${ player.position.toFixed(
                 2) }` }</span>
-        </div>
+        </label>
 
-        <div className="divider"></div>
+        <div className="divider"/>
+        <div id="playback-controls-center"/>
+        <div className="divider"/>
 
         <Slider id="volume" name="Volume"
                 range={ new NumberRange(0, 1.5) }
@@ -79,7 +98,7 @@ export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
                 displayText={ value => value.toFixed(2) }
                 displayWidth={ 2.4 }/>
 
-        <div className="small-divider"></div>
+        <div className="divider"/>
 
         <Slider id="smoothing" name="Smoothing"
                 range={ new NumberRange(0, 1) }
@@ -89,7 +108,7 @@ export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
                 displayText={ s => s.toFixed(2) }
                 displayWidth={ 2.4 }/>
 
-        <div className="small-divider"></div>
+        <div className="divider"/>
 
         <Slider id="spectral-resolution" name="Resolution"
                 range={ new NumberRange(10, 16) }

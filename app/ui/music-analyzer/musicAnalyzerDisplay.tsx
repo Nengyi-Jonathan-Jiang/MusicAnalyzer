@@ -160,7 +160,6 @@ export function MusicAnalyzerDisplay () {
         ),
     });
 
-
     useListenerOnElement(canvasRef, {
         listenerType: 'wheel', listener: useMemo(
             () => (e: WheelEvent) => handlePositionWheel(e, player), [ player]

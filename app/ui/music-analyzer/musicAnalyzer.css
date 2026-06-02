@@ -14,11 +14,6 @@
     background-color: var(--bg-color-light);
 }
 
-#playback-controls {
-    display:     flex;
-    align-items: center;
-}
-
 #spectrum > canvas {
     width:        100%;
     height:       auto;
@@ -34,98 +29,4 @@
 #waveform > canvas {
     width:  100%;
     height: 100%;
-}
-
-#current-position-display {
-    display: flex;
-}
-
-#current-position-display > span:nth-child(2) {
-    display:    inline-block;
-    width:      4em;
-    min-width:  4em;
-    text-align: right;
-}
-
-.divider {
-    flex-grow:       1;
-    display:         flex;
-    justify-content: space-between;
-    height:          30px;
-}
-
-.divider::before, .divider::after {
-    content:          "";
-    display:          block;
-    width:            1px;
-    height:           100%;
-    background-color: var(--medium-color);
-    margin:           0 1em;
-}
-
-.small-divider {
-    flex-grow: 0;
-    display: inline-block;
-    width: 1px;
-    height: 30px;
-    background-color: var(--medium-color);
-    margin:           0 1em;
-}
-
-#uploader {
-    padding:      5px;
-    outline:      1px solid white;
-}
-
-#uploader > input[type="file"] {
-    display: none;
-}
-
-#uploader::before {
-    content: "Upload";
-    padding-inline: .2em;
-}
-
-#current-position-adjust > button {
-    font-family: 'JetBrains Mono', monospace;
-    font-size:   110%;
-    padding:     2px;
-}
-
-#uploader, #rewind-button, #playpause-button {
-    margin-right: 20px;
-}
-
-#rewind-button, #playpause-button {
-    font-family: 'JetBrains Mono', monospace;
-    font-size:   90%;
-}
-
-.slider {
-    display:     flex;
-    align-items: center;
-}
-
-:is(.slider) > span:first-child {
-    margin-right: 5px;
-}
-
-:is(.slider) > span {
-    display:    flex;
-    justify-content: end;
-    align-items: center;
-}
-
-.slider {
-    --text-width: 5em;
-}
-
-.slider > span:last-child {
-    min-width:  var(--text-width);
-    max-width:  var(--text-width);
-    width:      var(--text-width);
-}
-
-input[type="range"] {
-    width: 4.5em;
 }

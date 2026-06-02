@@ -20,6 +20,8 @@ export class MusicPlayer {
 
     #volume: number = 1;
 
+    #doRepeat: boolean = false;
+
     constructor () {
         this.#player = new Player();
         this.#gain = new Gain(1, "gain");
@@ -38,7 +40,9 @@ export class MusicPlayer {
             this.onstop.call(null);
 
             this.#resumePosition = 0;
-            this.#scheduleAutoResume()
+            if (this.#doRepeat) {
+                this.#scheduleAutoResume(0);
+            }
         };
     }
 
@@ -78,7 +82,7 @@ export class MusicPlayer {
         }
     }
 
-    #scheduleAutoResume () {
+    #scheduleAutoResume (delay: number = MusicPlayer.#autoResumeDelay) {
         this.#cancelAutoResume();
         const r = this.#autoResume = setTimeout(() => {
             this.play();
@@ -86,7 +90,7 @@ export class MusicPlayer {
                 clearTimeout(r);
                 this.#autoResume = null;
             }
-        }, MusicPlayer.#autoResumeDelay);
+        }, delay);
     }
 
     get #playTimeSinceResumed () {
@@ -148,11 +152,19 @@ export class MusicPlayer {
         this.#audio = audio;
     }
 
+    get doRepeat (): boolean {
+        return this.#doRepeat;
+    }
+
+    set doRepeat (value: boolean) {
+        this.#doRepeat = value;
+    }
+
     get isAudioLoaded () {
         return this.audio.buffer.loaded;
     }
 
-    get sampleRate() {
-        return getContext().sampleRate
+    get sampleRate () {
+        return getContext().sampleRate;
     }
 }
