@@ -1,10 +1,20 @@
 import { ToneAudioBuffer } from "tone";
+import { clamp } from "@/app/lib/utils/util";
 
 const emptyArray = new Float32Array(2 << 16);
 
 export class AudioFile {
     public readonly buffer: ToneAudioBuffer;
     private _arr: Float32Array | null = null;
+
+    // Arrays for faster access to audio data
+
+    /** zero-padded data */
+    private _zero_extended_data: Float32Array | null = null;
+    /** repeat-padded data */
+    private _repeat_extended_data: Float32Array | null = null;
+    /** zeroed out data, special case when arr is empty */
+    private _empty_data: Float32Array | null = null;
 
     get arr (): Readonly<Float32Array> {
         if (this._arr === null) {
@@ -36,39 +46,62 @@ export class AudioFile {
         return this._arr;
     }
 
+    #getExtendedData (padding: number, loop: boolean = false) {
+        const arr: Readonly<Float32Array> = this.arr;
+        let length = padding * 2 + arr.length;
+
+        if (arr.length === 0) {
+            return (this._empty_data ??= new Float32Array(length));
+        }
+
+        if (loop) {
+            if (this._repeat_extended_data?.length == length) {
+                return this._repeat_extended_data;
+            }
+            this._repeat_extended_data = new Float32Array(length);
+
+            // Keep track of what we left unfilled by lifting loop variable out
+            let i1, i2;
+            for (i1 = padding ; i1 >= arr.length ; i1 -= arr.length) {
+                this._repeat_extended_data.set(arr, i1 - arr.length);
+            }
+            for (i2 = padding ; i2 + arr.length <= length ; i2 += arr.length) {
+                this._repeat_extended_data.set(arr, i2);
+            }
+            // Now 0 <= i1 < arr.length; length - arr.length < i2 <= length
+
+            // Fill in incomplete repeats at the ends
+            this._repeat_extended_data.set(arr.slice(arr.length - i1), 0);
+            this._repeat_extended_data.set(arr.slice(0, length - i2), i2);
+
+            return this._repeat_extended_data;
+        }
+        else {
+            if (this._zero_extended_data?.length == length) {
+                return this._zero_extended_data;
+            }
+            this._zero_extended_data = new Float32Array(length);
+            this._zero_extended_data.set(arr, padding);
+            return this._zero_extended_data;
+        }
+    }
+
     /**
      * Creates a slice of the data up to a point
      */
-    public getData (time: number, samples: number) {
+    public getData (time: number, samples: number, loop: boolean = false) {
+        const sample = clamp(time * this.buffer.sampleRate, 0, this.arr.length);
+
         // We are doing a window of 2 * samples because each sample spans over
         // two indices (real and imaginary parts)
-        let index_center = Math.round(
-            time * this.buffer.sampleRate - samples * 0.5);
-        let index_start = index_center - samples;
-        let index_end = index_center + samples;
 
-        if (index_start >= this.arr.length) return new Float32Array(
-            samples * 2);
+        const index_center = Math.round(sample - samples * 0.5);
+        const index_start = index_center - samples;
+        const index_end = index_center + samples;
 
-        let padding_amount_before = Math.max(-index_start, 0);
-        let padding_amount_after = Math.max(index_end - this.arr.length, 0);
-        index_start += padding_amount_before;
-        index_end -= padding_amount_after;
-
-        try {
-            return new Float32Array([
-                ...new Array(padding_amount_before).fill(0),
-                ...this.arr.subarray(index_start, index_end),
-                ...new Array(padding_amount_after).fill(0),
-            ]);
-        }
-        catch (e) {
-            console.log(
-                index_start, index_end, padding_amount_before,
-                padding_amount_after,
-            );
-            throw e;
-        }
+        const padding: number = samples * 2;
+        const extendedData = this.#getExtendedData(padding, loop);
+        return extendedData.slice(index_start + padding, index_end + padding);
     }
 
     constructor (buffer: ToneAudioBuffer) {

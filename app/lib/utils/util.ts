@@ -1,10 +1,11 @@
-import {DependencyList, RefObject, useEffect, useState} from "react";
+import { useState } from "react";
 
 /**
  * Creates an array with a specified length and fills it with values.
  * @param length The length of the array to be created
- * @param value If this is a function, it will be with each index in the range [0, length) to populate the array.
- *              Otherwise, the array will be filled with this value.
+ * @param value If this is a function, it will be with each index in the range
+ *     [0, length) to populate the array. Otherwise, the array will be filled
+ *     with this value.
  */
 export function createArray<T>(length: number, value: T | ((index: number) => T)): T[] {
     if(length < 1) return [];
@@ -46,7 +47,8 @@ export function getFirstElementFromSet<T>(set: Set<T>) {
 }
 
 /**
- * A custom react hook. Returns a function `rerender()` which forces the component to update
+ * A custom react hook. Returns a function `rerender()` which forces the
+ * component to update
  */
 export function useManualRerender(): () => void {
     const [dummy, setDummy] = useState(0);

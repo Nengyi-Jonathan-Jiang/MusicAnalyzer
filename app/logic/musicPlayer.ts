@@ -30,19 +30,13 @@ export class MusicPlayer {
         this.#audio = new AudioFile(new ToneAudioBuffer());
         this.#player.onstop = () => {
             if (!this.#isPlaying) return;
-
-            if (this.#resumeTime + this.#playTimeSinceResumed >= this.duration) {
+            if (this.isFinished) {
                 this.#resumePosition = this.duration;
             }
 
             this.#isPlaying = false;
             this.#resumeTime = NaN;
             this.onstop.call(null);
-
-            this.#resumePosition = 0;
-            if (this.#doRepeat) {
-                this.#scheduleAutoResume(0);
-            }
         };
     }
 
@@ -59,7 +53,6 @@ export class MusicPlayer {
 
         this.onstart.call(null);
 
-        if (this.#player.state !== 'stopped') return;
         this.#player.start(this.#resumeTime, this.#resumePosition);
     }
 
@@ -71,7 +64,6 @@ export class MusicPlayer {
         this.#resumeTime = NaN;
         this.onstop.call(null);
 
-        if (this.#player.state !== 'started') return;
         this.#player.stop();
     }
 
@@ -98,6 +90,10 @@ export class MusicPlayer {
         return now() - this.#resumeTime;
     }
 
+    get #rawPosition () {
+        return this.#resumePosition + this.#playTimeSinceResumed;
+    }
+
     get isFinished () {
         return this.position > this.duration - 0.001;
     }
@@ -117,11 +113,17 @@ export class MusicPlayer {
         this.#resumePosition = clamp(time, 0, this.duration);
     }
 
+    /**
+     * Current time in seconds of the player.
+     *
+     * This is guaranteed to be between 0 and duration
+     */
     get position () {
-        return this.#isPlaying ? clamp(
-            this.#resumePosition + this.#playTimeSinceResumed,
-            0, this.duration,
-        ) : this.#resumePosition;
+        if (!this.#isPlaying) return this.#resumePosition;
+
+        return this.#doRepeat
+            ? this.#rawPosition % this.duration
+            : clamp(this.#rawPosition, 0, this.duration);
     }
 
     get volume (): number {
@@ -150,6 +152,8 @@ export class MusicPlayer {
         this.rewind();
         this.#player.buffer = audio.buffer;
         this.#audio = audio;
+        this.#player.loopStart = 0;
+        this.#player.loopEnd = this.duration;
     }
 
     get doRepeat (): boolean {
@@ -157,7 +161,19 @@ export class MusicPlayer {
     }
 
     set doRepeat (value: boolean) {
-        this.#doRepeat = value;
+        // noinspection JSAssignmentUsedAsCondition
+        if (this.#doRepeat = value) {
+            this.#player.loop = true;
+        }
+        else {
+            this.#player.loop = false;
+
+            // Fix raw position since it may be out of bounds iff repeat is on
+            if(this.#isPlaying) while (this.#rawPosition >= this.duration) {
+                this.#resumeTime += this.duration;
+            }
+        }
+        // TODO: fix issue where
     }
 
     get isAudioLoaded () {

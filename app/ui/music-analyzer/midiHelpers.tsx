@@ -1,7 +1,7 @@
 import {LinearValueConvertor, logTransform} from "@/app/lib/utils/valueConvertor";
 import {NumberRange} from "@/app/lib/utils/numberRange";
 
-export const freqToMidiConvertor = LinearValueConvertor.fittingRangeToAfter(
+export const freqToMidi = LinearValueConvertor.fittingRangeToAfter(
     new NumberRange(220, 440),
     new NumberRange(57, 69),
     logTransform

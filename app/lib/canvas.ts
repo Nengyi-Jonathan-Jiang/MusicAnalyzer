@@ -18,6 +18,7 @@ class CanvasBase {
     #strokeColor: string = "black";
     #fillColor: string = "black";
     #clearColor: string = "transparent";
+    #opacity: number = 1;
     #strokeWidth: number = 2;
     #font: string = "";
     #textAlign: TextAlignment = TextAlignment.Center;
@@ -105,11 +106,16 @@ class CanvasBase {
         this.#updateCtxStrokeWidth();
         this.#updateCtxTextAlignment();
         this.#updateCtxFont();
+        this.#updateCtxOpacity();
     }
 
     protected get ctx () {
         this.updateCanvas();
         return this.#ctx;
+    }
+
+    get raw_ctx() {
+        return this.ctx;
     }
 
     resizeToFitCSS () {
@@ -132,6 +138,17 @@ class CanvasBase {
     #updateCtxStrokeColor () {
         if (this.ctx) {
             this.ctx.strokeStyle = this.#strokeColor;
+        }
+    }
+
+    set opacity(opacity: number) {
+        this.#opacity = opacity;
+        this.#updateCtxOpacity();
+    }
+
+    #updateCtxOpacity() {
+        if(this.ctx) {
+            this.ctx.globalAlpha = this.#opacity
         }
     }
 
@@ -308,6 +325,10 @@ class CanvasBase {
     }
 }
 
+type Point = readonly [ number, number ];
+
+type Points = readonly Point[];
+
 export class Canvas extends CanvasBase {
     line (x1: number, y1: number, x2: number, y2: number) {
         this.beginSubPathAt(x1, y1);
@@ -387,8 +408,7 @@ export class Canvas extends CanvasBase {
         this.ctx.strokeText(txt, x, y);
     }
 
-    polygon (
-        center: [ number, number ], ...pointOffsets: [ number, number ][]) {
+    polygon (center: Point, ...pointOffsets: Points) {
         this.beginSubPathAt(
             pointOffsets[pointOffsets.length - 1][0] + center[0],
             pointOffsets[pointOffsets.length - 1][1] + center[1],
@@ -399,15 +419,13 @@ export class Canvas extends CanvasBase {
         );
     }
 
-    immediateDrawPolygon (
-        center: [ number, number ], ...pointOffsets: [ number, number ][]) {
+    immediateDrawPolygon (center: Point, ...pointOffsets: Points) {
         this.beginNewPath();
         this.polygon(center, ...pointOffsets);
         this.stroke();
     }
 
-    immediateFillPolygon (
-        center: [ number, number ], ...pointOffsets: [ number, number ][]) {
+    immediateFillPolygon (center: Point, ...pointOffsets: Points) {
         this.beginNewPath();
         this.polygon(center, ...pointOffsets);
         this.stroke();
@@ -417,7 +435,7 @@ export class Canvas extends CanvasBase {
         x: number, y: number, width: number, height: number, radius: number) {
         const x1 = x, x2 = x + radius, x3 = x + width - radius, x4 = x + width;
         const y1 = y, y2 = y + radius, y3 = y + height - radius,
-              y4 = y + height;
+              y4                          = y + height;
 
         /*
          * Corner order:
@@ -441,7 +459,8 @@ export class Canvas extends CanvasBase {
     }
 
     immediateStrokeRoundedRect (
-        x: number, y: number, width: number, height: number, radius: number) {
+        x: number, y: number, width: number, height: number, radius: number,
+    ) {
         this.beginNewPath();
         this.roundedRect(x, y, width, height, radius);
         this.stroke();
@@ -459,15 +478,15 @@ export class Canvas extends CanvasBase {
      * @param points
      * points to draw the curve through
      */
-    spline (...points: [ number, number ][]) {
+    spline (...points: Points) {
         if (!this.ctx) return;
 
         const f = 0.3, t = 0.6;
 
         this.beginSubPathAt(points[0][0], points[0][1]);
         let m                  = 0,
-            lastDx             = 0, lastDy = 0,
-            currDx = 0, currDy = 0;
+            lastDx = 0, lastDy = 0,
+            currDx             = 0, currDy = 0;
 
         let previousPoint = points[0];
 
@@ -498,23 +517,23 @@ export class Canvas extends CanvasBase {
         }
     }
 
-    immediateStrokeSpline (...points: [ number, number ][]) {
+    immediateStrokeSpline (...points: Points) {
         this.beginNewPath();
         this.spline(...points);
         this.stroke();
     }
 
-    closedSpline (...points: [ number, number ][]) {
+    closedSpline (...points: Points) {
         this.spline(...points, points[0]);
     }
 
-    immediateStrokeClosedSpline (...points: [ number, number ][]) {
+    immediateStrokeClosedSpline (...points: Points) {
         this.beginNewPath();
         this.closedSpline(...points);
         this.stroke();
     }
 
-    immediateFillClosedSpline (...points: [ number, number ][]) {
+    immediateFillClosedSpline (...points: Points) {
         this.beginNewPath();
         this.closedSpline(...points);
         this.fill();
@@ -524,18 +543,19 @@ export class Canvas extends CanvasBase {
         img: HTMLImageElement | HTMLCanvasElement, x: number, y: number,
         factor = 1,
     ) {
-        this.drawImageOnRect(img, x, y, factor * img.width, factor * img.height);
+        this.drawImageOnRect(
+            img, x, y, factor * img.width, factor * img.height);
     }
 }
 
 export enum TextAlignment {
-    TopLeft = "top left",
-    TopCenter = "top center",
-    TopRight = "top right",
-    CenterLeft = "middle left",
-    Center = "middle center",
-    CenterRight = "middle right",
-    BottomLeft = "alphabetic left",
+    TopLeft      = "top left",
+    TopCenter    = "top center",
+    TopRight     = "top right",
+    CenterLeft   = "middle left",
+    Center       = "middle center",
+    CenterRight  = "middle right",
+    BottomLeft   = "alphabetic left",
     BottomCenter = "alphabetic center",
-    BottomRight = "alphabetic right"
+    BottomRight  = "alphabetic right"
 }

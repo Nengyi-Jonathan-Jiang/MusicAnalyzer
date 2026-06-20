@@ -4,33 +4,51 @@ import {
 import { IntRange, NumberRange } from "@/app/lib/utils/numberRange";
 import { MusicPlayer } from "@/app/logic/musicPlayer";
 import webfft from "webfft";
-import { createArray } from "@/app/lib/utils/util";
 import { AudioFile } from "@/app/logic/audioFile";
 import { now } from "tone";
+import { ExternalSmoother, Smoother } from "@/app/lib/utils/smoother";
 
 const windowFunctionCache = new Map<number, Float32Array>;
+let fftCache: [ webfft, number ] | null = null;
 
-const { cos, hypot, log, exp, max } = Math;
+const { cos, hypot, log, exp } = Math;
 
-function getFFT (audio: AudioFile, startTime: number, resolution: number):
+function getFFT (
+    audio: AudioFile, startTime: number, resolution: number,
+    loop: boolean = false,
+):
     { mag: Float32Array; raw: Float32Array } | null {
     const size: number = 1 << resolution;
 
-    const data: Float32Array = audio.getData(startTime, size);
+    const data: Float32Array = audio.getData(startTime, size, loop);
 
-    const fft = new webfft(size);
-    fft.setSubLibrary('kissWasm');
+    let fft: webfft;
+    if (fftCache?.[1] !== size) {
+        if (fftCache && fftCache[0]) {
+            fftCache[0].dispose();
+        }
 
-    // Compute blackman window
+        fft = new webfft(size);
+        fft.setSubLibrary('kissWasm');
+        fftCache = [ fft, size ];
+    }
+    else {
+        fft = fftCache[0];
+    }
+
     if (!windowFunctionCache.has(resolution)) {
-        const alpha = 0.16;
-        const a0 = 0.5 * (1 - alpha);
-        const a1 = 0.5;
-        const a2 = 0.5 * alpha;
-
         const arr = new Float32Array(data.length).map((_, i) => {
-            const x = i / data.length;
-            return a0 - a1 * cos(2 * Math.PI * x) + a2 * cos(4 * Math.PI * x);
+            const x = 2 * Math.PI * i / data.length;
+
+            // Blackman window
+            // const alpha = 0.16;
+            // const a0 = 0.5 * (1 - alpha);
+            // const a1 = 0.5;
+            // const a2 = 0.5 * alpha;
+            // return a0 - a1 * cos(x) + a2 * cos(2 * x);
+
+            // Hann window
+            return 0.5 - 0.5 * cos(x)
         });
 
         windowFunctionCache.set(resolution, arr);
@@ -47,12 +65,9 @@ function getFFT (audio: AudioFile, startTime: number, resolution: number):
     try {
         const rawResult = fft.fft(data);
 
-
-        const magResult = rawResult
-            .map((_, i, arr) => hypot(arr[i], arr[i + 1]))
-            .filter((_, i) => i % 2 == 0)
-        ;
-        fft.dispose();
+        const magResult = new Float32Array(size).map(
+            (_, i) => hypot(rawResult[2 * i], rawResult[2 * i + 1]),
+        );
 
         return {
             mag: magResult,
@@ -71,6 +86,12 @@ export class MusicAnalyzer {
     #resolution: number;
     #smoothing: number;
 
+    static readonly smoother: ExternalSmoother<[number]> = new Smoother({
+        func(err, elapsedTime, decayConstant) {
+            return 0;
+        }
+    })
+
     constructor (
         player: MusicPlayer, fftResolution: number = 12, smoothing = 0.5,
     ) {
@@ -86,7 +107,7 @@ export class MusicAnalyzer {
     /**
      * Get the intensity (logarithmically scaled) of each frequency as an array
      */
-    get analysisData (): Float32Array {
+    get analysisData (): Readonly<Float32Array> {
         return this.#analysisData;
     }
 
@@ -152,30 +173,29 @@ export class MusicAnalyzer {
             this.player.audio,
             this.player.position,
             this.resolution,
+            this.player.doRepeat
         );
         if (result === null) return;
 
-        const { mag: newData } = result;
+        const { mag: data } = result;
 
-        if (this.#analysisData.length !== newData.length) {
-            this.#analysisData = newData.map(i => log(i));
+        if (this.#analysisData.length !== data.length) {
+            this.#analysisData = data.map(i => log(i));
         }
         else {
-            this.#analysisData = new Float32Array(
-                createArray(newData.length, i => {
-                    const oldValue = this.#analysisData[i];
-                    const newValue = log(newData[i]);
+            this.#analysisData = new Float32Array(data.length).map((_, i) => {
+                const oldValue = this.#analysisData[i];
+                const newValue = log(data[i]);
 
-                    if (isNaN(oldValue) || !isFinite(oldValue)) return newValue;
+                if (isNaN(oldValue) || !isFinite(oldValue)) return newValue;
 
-                    const a = Math.max(
-                        0.3, // Again reasonable I think
-                        exp(-elapsedTime / adjustedDecayTime)
-                    );
+                const a = Math.max(
+                    0.3, // Again reasonable I think
+                    exp(-elapsedTime / adjustedDecayTime),
+                );
 
-                    return newValue + (oldValue - newValue) * a;
-                }),
-            );
+                return newValue + (oldValue - newValue) * a;
+            });
         }
     }
 

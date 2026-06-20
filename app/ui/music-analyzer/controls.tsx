@@ -91,7 +91,7 @@ export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
         <div className="divider"/>
 
         <Slider id="volume" name="Volume"
-                range={ new NumberRange(0, 1.5) }
+                range={ new NumberRange(0, 2) }
                 step={ 0.02 }
                 value={ player.volume }
                 setValue={ v => player.volume = v }
