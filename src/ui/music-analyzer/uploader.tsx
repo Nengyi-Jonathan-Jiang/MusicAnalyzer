@@ -1,7 +1,7 @@
 import {
     DetailedHTMLProps, InputHTMLAttributes, LabelHTMLAttributes, useMemo,
 } from "react";
-import { useListenerOnWindow } from "@/app/lib/react-utils/hooks";
+import { useListenerOnWindow } from "@/lib/react-utils/hooks";
 
 
 export function Uploader ({ callback, fileTypes, labelProps, inputProps }: {

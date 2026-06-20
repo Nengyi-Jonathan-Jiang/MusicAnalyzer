@@ -1,4 +1,4 @@
-import {createArray} from "@/app/lib/utils/util";
+import {createArray} from "@/lib/utils/util";
 
 export interface ReadonlyNumberRange {
     readonly endpoints: number[];

@@ -1,5 +1,5 @@
 import { ToneAudioBuffer } from "tone";
-import { clamp } from "@/app/lib/utils/util";
+import { clamp } from "@/lib/utils/util";
 
 const emptyArray = new Float32Array(2 << 16);
 

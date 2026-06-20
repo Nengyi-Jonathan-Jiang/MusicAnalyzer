@@ -1,24 +1,24 @@
-import { MusicPlayer } from "@/app/logic/musicPlayer";
+import { MusicPlayer } from "@/logic/musicPlayer";
 import { ToneAudioBuffer } from "tone";
-import { AudioFile } from "@/app/logic/audioFile";
-import { Uploader } from "@/app/ui/music-analyzer/uploader";
-import { NumberRange } from "@/app/lib/utils/numberRange";
+import { AudioFile } from "@/logic/audioFile";
+import { Uploader } from "@/ui/music-analyzer/uploader";
+import { NumberRange } from "@/lib/utils/numberRange";
 import { ReactElement, useEffect, useMemo, useRef, useState } from "react";
-import { MusicAnalyzer } from "@/app/logic/analyzer";
+import { MusicAnalyzer } from "@/logic/analyzer";
 import {
     useAnimation, useListenerOnElement,
-} from "@/app/lib/react-utils/hooks";
+} from "@/lib/react-utils/hooks";
 import {
     NumericValueConvertor, powTransform, ValueConvertor,
-} from "@/app/lib/utils/valueConvertor";
+} from "@/lib/utils/valueConvertor";
 
 import "./controls.css";
 
-import PauseIcon from '@/app/icon/pause.svg';
-import PlayIcon from '@/app/icon/play.svg';
-import RepeatEnabledIcon from '@/app/icon/repeat-enabled.svg';
-import RepeatDisabledIcon from '@/app/icon/repeat-disabled.svg';
-import RewindIcon from '@/app/icon/rewind.svg';
+import PauseIcon from '@/icon/pause.svg?react';
+import PlayIcon from '@/icon/play.svg?react';
+import RepeatEnabledIcon from '@/icon/repeat-enabled.svg?react';
+import RepeatDisabledIcon from '@/icon/repeat-disabled.svg?react';
+import RewindIcon from '@/icon/rewind.svg?react';
 
 const SUPPORTED_AUDIO_FORMATS: string[] = [
     ".mp3", ".m4a", ".mp4", ".wav", ".ogg", ".webm", ".flac",

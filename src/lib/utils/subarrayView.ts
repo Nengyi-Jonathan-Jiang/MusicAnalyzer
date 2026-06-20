@@ -1,5 +1,5 @@
-import {createArray} from "@/app/lib/utils/util";
-import {IntRange, ReadonlyIntRange} from "@/app/lib/utils/numberRange";
+import {createArray} from "@/lib/utils/util";
+import {IntRange, ReadonlyIntRange} from "@/lib/utils/numberRange";
 
 type TypedArray = Float32Array | Float64Array | Int8Array | Int16Array | Int32Array;
 type ArrayOrArrayView<T> = T[] | SubarrayView<T> | (T extends number ? TypedArray : never);

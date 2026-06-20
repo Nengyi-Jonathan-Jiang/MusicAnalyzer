@@ -2,27 +2,27 @@
 
 import { useMemo, useRef, useState } from "react";
 import { now, start } from "tone";
-import { MusicAnalyzer } from "@/app/logic/analyzer";
-import { clamp, useManualRerender } from "@/app/lib/utils/util";
+import { MusicAnalyzer } from "@/logic/analyzer";
+import { clamp, useManualRerender } from "@/lib/utils/util";
 
 import "./musicAnalyzer.css";
-import { MusicPlayer } from "@/app/logic/musicPlayer";
+import { MusicPlayer } from "@/logic/musicPlayer";
 import {
     Listener, useListenerOnElement, useListenerOnWindow,
-} from "@/app/lib/react-utils/hooks";
-import { Canvas, TextAlignment } from "@/app/lib/canvas";
-import { IntRange, NumberRange } from "@/app/lib/utils/numberRange";
-import { LinearValueConvertor } from "@/app/lib/utils/valueConvertor";
-import { SubarrayView } from "@/app/lib/utils/subarrayView";
-import { MaximumFinder, MinMaxFinder } from "@/app/lib/utils/minMax";
+} from "@/lib/react-utils/hooks";
+import { Canvas, TextAlignment } from "@/lib/canvas";
+import { IntRange, NumberRange } from "@/lib/utils/numberRange";
+import { LinearValueConvertor } from "@/lib/utils/valueConvertor";
+import { SubarrayView } from "@/lib/utils/subarrayView";
+import { MaximumFinder, MinMaxFinder } from "@/lib/utils/minMax";
 import {
     freqToMidi, midiNoteValueToString,
-} from "@/app/ui/music-analyzer/midiHelpers";
-import { AnimatedCanvas } from "@/app/ui/music-analyzer/animatedCanvas";
+} from "@/ui/music-analyzer/midiHelpers";
+import { AnimatedCanvas } from "@/ui/music-analyzer/animatedCanvas";
 import {
     Controls, handlePositionWheel,
-} from "@/app/ui/music-analyzer/controls";
-import { Smoother } from "@/app/lib/utils/smoother";
+} from "@/ui/music-analyzer/controls";
+import { Smoother } from "@/lib/utils/smoother";
 
 // Not exactly 27.5 - 4200 (A0 to C8) to leave space at ends
 const frequencyRange = new NumberRange(25, 4320);
@@ -58,7 +58,7 @@ function normalizeAndProcessFFTData (data: SubarrayView<number>) {
 function binPoints (p: [ number, number ][]): (readonly [ number, number ])[] {
     const bins: Map<number, [ number, number ][]> = new Map;
     for (let [ x, y ] of p) {
-        x = Math.round(x * 10) / 10;
+        x = Math.round(x * 4) / 4;
         if (!bins.has(x)) bins.set(x, []);
         bins.get(x)!.push([ x, y ]);
     }
@@ -101,8 +101,7 @@ function redrawFFT (canvas: Canvas, analyzer: MusicAnalyzer) {
 
         const frequency = i * analyzer.frequencyBinSize;
         const midi: number = freqToMidi.convertForwards(frequency);
-        const midiNote = Math.round(midi);
-        const y: any = Math.max(val, 0);
+        const y = Math.max(val, 0);
 
         p.push([ midi, y ]);
     }

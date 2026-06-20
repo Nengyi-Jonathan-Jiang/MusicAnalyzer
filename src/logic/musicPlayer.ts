@@ -1,6 +1,6 @@
 import { Gain, getContext, now, Player, ToneAudioBuffer } from "tone";
-import { clamp } from "@/app/lib/utils/util";
-import { AudioFile } from "@/app/logic/audioFile";
+import { clamp } from "@/lib/utils/util";
+import { AudioFile } from "@/logic/audioFile";
 
 export class MusicPlayer {
     readonly #player: Player;
@@ -12,7 +12,7 @@ export class MusicPlayer {
 
     #isPlaying: boolean = false;
 
-    #autoResume: NodeJS.Timeout | null = null;
+    #autoResume: number | null = null;
     static readonly #autoResumeDelay: number = 300;
 
     public onstop: () => any = () => void 0;

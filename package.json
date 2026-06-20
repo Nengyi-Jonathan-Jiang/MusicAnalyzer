@@ -1,27 +1,24 @@
 {
   "private": true,
   "scripts": {
-    "build": "next build --webpack",
-    "dev": "next dev --webpack",
-    "start": "next start --webpack"
+    "dev": "vite --port 80",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview --port 80"
   },
   "dependencies": {
-    "@types/node": "20.5.7",
     "lz-string": "^1.5.0",
-    "next": "16.2.6",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "tone": "^15.0.4",
-    "typescript": "5.2.2",
     "webfft": "^1.0.3"
   },
   "devDependencies": {
-    "@svgr/webpack": "^8.1.0",
-    "@types/react": "18.2.21",
-    "@types/react-dom": "18.2.14",
-    "dotenv": "^16.3.1"
-  },
-  "engines": {
-    "node": ">=18.17.0"
+    "@types/node": "^26.0.0",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "typescript": "~6.0.3",
+    "vite": "8.0.16",
+    "vite-plugin-svgr": "^5.2.0"
   }
 }

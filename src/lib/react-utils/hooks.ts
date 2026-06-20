@@ -1,10 +1,10 @@
 import { DependencyList, RefObject, useEffect, useState } from "react";
 
-function createRefList<T> (amount: number): RefObject<T>[] {
+function createRefList<T> (amount: number): RefObject<T | null>[] {
     return new Array<null>(amount).fill(null).map(() => ({ current: null }));
 }
 
-export function useRefs<T> (amount: number): RefObject<T>[] {
+export function useRefs<T> (amount: number): RefObject<T | null>[] {
     const [ refList, setRefList ] = useState(() => createRefList<T>(amount));
     if (amount !== refList.length) {
         setRefList(createRefList(amount));

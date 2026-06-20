@@ -1,8 +1,8 @@
 import {
     CanvasHTMLAttributes, DetailedHTMLProps, RefObject, useMemo, useRef,
 } from "react";
-import { Canvas } from "@/app/lib/canvas";
-import { useAnimation } from "@/app/lib/react-utils/hooks";
+import { Canvas } from "@/lib/canvas";
+import { useAnimation } from "@/lib/react-utils/hooks";
 
 export function AnimatedCanvas ({
     initializer,
@@ -12,10 +12,10 @@ export function AnimatedCanvas ({
 }: {
     initializer: (canvas: Canvas) => any,
     animator: (canvas: Canvas) => any,
-    ref?: RefObject<HTMLCanvasElement> | null,
+    ref?: RefObject<HTMLCanvasElement | null> | null,
 } & Partial<DetailedHTMLProps<CanvasHTMLAttributes<HTMLCanvasElement>, HTMLCanvasElement>>) {
-    const defaultRef: RefObject<HTMLCanvasElement> = useRef(null);
-    const r: RefObject<HTMLCanvasElement> = ref ?? defaultRef;
+    const defaultRef: RefObject<HTMLCanvasElement | null> = useRef(null);
+    const r: RefObject<HTMLCanvasElement | null> = ref ?? defaultRef;
 
     const canvas = useMemo(() => {
         const result = new Canvas(r);

@@ -1,4 +1,4 @@
-import {NumberRange} from "@/app/lib/utils/numberRange";
+import {NumberRange} from "@/lib/utils/numberRange";
 
 export interface CumulativeResultFinder<ResultType = number> {
     accept(value: number): void;

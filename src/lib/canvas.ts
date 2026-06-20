@@ -6,8 +6,9 @@ type CanvasOptions = {
     height?: number
 }
 
+// noinspection JSUnusedGlobalSymbols
 class CanvasBase {
-    readonly #canvasRef: RefObject<HTMLCanvasElement>;
+    readonly #canvasRef: RefObject<HTMLCanvasElement | null>;
     #canvasElement: HTMLCanvasElement | null = null;
     #ctx: CanvasRenderingContext2D | null = null;
 
@@ -24,11 +25,13 @@ class CanvasBase {
     #textAlign: TextAlignment = TextAlignment.Center;
 
     constructor (
-        canvasElement: HTMLCanvasElement | RefObject<HTMLCanvasElement>,
+        canvasElement: HTMLCanvasElement | RefObject<HTMLCanvasElement | null>,
         options?: CanvasOptions,
     ) {
         if (canvasElement instanceof HTMLCanvasElement) {
-            this.#canvasRef = { current: canvasElement } as RefObject<HTMLCanvasElement>;
+            this.#canvasRef = {
+                current: canvasElement
+            } as RefObject<HTMLCanvasElement | null>;
         }
         else this.#canvasRef = canvasElement;
 
@@ -75,7 +78,7 @@ class CanvasBase {
         return this.#canvasElement;
     }
 
-    get rawCanvasRef (): RefObject<HTMLCanvasElement> {
+    get rawCanvasRef (): RefObject<HTMLCanvasElement | null> {
         return this.#canvasRef;
     }
 
@@ -114,7 +117,7 @@ class CanvasBase {
         return this.#ctx;
     }
 
-    get raw_ctx() {
+    get raw_ctx () {
         return this.ctx;
     }
 
@@ -141,14 +144,14 @@ class CanvasBase {
         }
     }
 
-    set opacity(opacity: number) {
+    set opacity (opacity: number) {
         this.#opacity = opacity;
         this.#updateCtxOpacity();
     }
 
-    #updateCtxOpacity() {
-        if(this.ctx) {
-            this.ctx.globalAlpha = this.#opacity
+    #updateCtxOpacity () {
+        if (this.ctx) {
+            this.ctx.globalAlpha = this.#opacity;
         }
     }
 
@@ -329,6 +332,7 @@ type Point = readonly [ number, number ];
 
 type Points = readonly Point[];
 
+// noinspection JSUnusedGlobalSymbols
 export class Canvas extends CanvasBase {
     line (x1: number, y1: number, x2: number, y2: number) {
         this.beginSubPathAt(x1, y1);
@@ -485,8 +489,8 @@ export class Canvas extends CanvasBase {
 
         this.beginSubPathAt(points[0][0], points[0][1]);
         let m                  = 0,
-            lastDx = 0, lastDy = 0,
-            currDx             = 0, currDy = 0;
+            lastDx             = 0, lastDy = 0,
+            currDx = 0, currDy = 0;
 
         let previousPoint = points[0];
 
@@ -548,6 +552,7 @@ export class Canvas extends CanvasBase {
     }
 }
 
+// noinspection JSUnusedGlobalSymbols
 export enum TextAlignment {
     TopLeft      = "top left",
     TopCenter    = "top center",

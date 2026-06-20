@@ -1,4 +1,4 @@
-import { NumberRange, ReadonlyNumberRange } from "@/app/lib/utils/numberRange";
+import { NumberRange, ReadonlyNumberRange } from "@/lib/utils/numberRange";
 
 export abstract class ValueConvertor<T, U> {
     public abstract convertForwards (amountA: T): U;

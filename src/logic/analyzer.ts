@@ -1,12 +1,12 @@
 import {
     convertRangeBackwards, LinearValueConvertor,
-} from "@/app/lib/utils/valueConvertor";
-import { IntRange, NumberRange } from "@/app/lib/utils/numberRange";
-import { MusicPlayer } from "@/app/logic/musicPlayer";
+} from "@/lib/utils/valueConvertor";
+import { IntRange, NumberRange } from "@/lib/utils/numberRange";
+import { MusicPlayer } from "@/logic/musicPlayer";
 import webfft from "webfft";
-import { AudioFile } from "@/app/logic/audioFile";
+import { AudioFile } from "@/logic/audioFile";
 import { now } from "tone";
-import { ExternalSmoother, Smoother } from "@/app/lib/utils/smoother";
+import { ExternalSmoother, Smoother } from "@/lib/utils/smoother";
 
 const windowFunctionCache = new Map<number, Float32Array>;
 let fftCache: [ webfft, number ] | null = null;

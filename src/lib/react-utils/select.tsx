@@ -4,7 +4,7 @@ import {
 } from "react";
 import {
     Listener, useListenerOnWindow, useRefs,
-} from "@/app/lib/react-utils/hooks";
+} from "@/lib/react-utils/hooks";
 
 type SelectOptionComponentProps<OptionValueType, RefType extends HTMLElement> = {
     value: OptionValueType,
