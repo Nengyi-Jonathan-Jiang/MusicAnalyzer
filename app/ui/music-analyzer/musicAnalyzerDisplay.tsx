@@ -55,14 +55,14 @@ function normalizeAndProcessFFTData (data: SubarrayView<number>) {
     return res;
 }
 
-function binPoints (p: [ number, number ][]): any {
-    const lineBins: Map<number, [ number, number ][]> = new Map;
+function binPoints (p: [ number, number ][]): (readonly [ number, number ])[] {
+    const bins: Map<number, [ number, number ][]> = new Map;
     for (let [ x, y ] of p) {
         x = Math.round(x * 10) / 10;
-        if (!lineBins.has(x)) lineBins.set(x, []);
-        lineBins.get(x)!.push([ x, y ]);
+        if (!bins.has(x)) bins.set(x, []);
+        bins.get(x)!.push([ x, y ]);
     }
-    return [ ...lineBins.entries() ].map(
+    return [ ...bins.entries() ].map(
         ([ _, p ]) => {
             const [ px, py ] = [ 0, 1 ].map(i => p.map(j => j[i]));
 
@@ -70,7 +70,7 @@ function binPoints (p: [ number, number ][]): any {
             return [
                 px.reduce((a, b) => a + b, 0) / p.length,
                 (py_total / p.length) ** 0.3333,
-            ];
+            ] as const;
         },
     ).sort((a, b) => a[0] - b[0]);
 }
@@ -191,7 +191,7 @@ function redrawFFT (canvas: Canvas, analyzer: MusicAnalyzer) {
     canvas.immediateStrokeSpline([ 0, 0 ], ...binnedData.map(([ x, y ]) => [
         midiToXFrac.convertForwards(x) * canvas.width,
         (1 - y) * canvas.height,
-    ]));
+    ] as const));
     for (const [ font_size, info ] of textBins) {
         canvas.font = `${ font_size }px sans-serif`;
 
