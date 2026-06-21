@@ -5,9 +5,7 @@ import { Uploader } from "@/ui/music-analyzer/uploader";
 import { NumberRange } from "@/lib/utils/numberRange";
 import { ReactElement, useEffect, useMemo, useRef, useState } from "react";
 import { MusicAnalyzer } from "@/logic/analyzer";
-import {
-    useAnimation, useListenerOnElement,
-} from "@/lib/react-utils/hooks";
+import { useAnimation, useListenerOnElement } from "@/lib/react-utils/hooks";
 import {
     NumericValueConvertor, powTransform, ValueConvertor,
 } from "@/lib/utils/valueConvertor";
@@ -31,15 +29,15 @@ export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
     const ref = useRef<HTMLSpanElement>(null);
     useEffect(() => {
         if (ref.current) {
-            ref.current.innerText = '0.000';
+            ref.current.textContent = '0.000';
         }
     }, []);
 
     useAnimation(useMemo(() => () => {
         if (ref.current) {
             const s = `${ player.position.toFixed(2) }`;
-            if (ref.current.innerText !== s) {
-                ref.current.innerText = s;
+            if (ref.current.textContent !== s) {
+                ref.current.textContent = s;
             }
         }
         analyzer.reAnalyze();
@@ -56,10 +54,11 @@ export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
 
     return <div id="playback-controls">
         <Uploader
-            callback={ (url, onLoad) => {
+            callback={ (url, onLoad, name) => {
                 // Need to convert to mono
                 let buffer = new ToneAudioBuffer(url, onLoad);
                 player.audio = new AudioFile(buffer);
+                document.title = `Music Analyzer | ${ name }`;
             } }
             fileTypes={ SUPPORTED_AUDIO_FORMATS }
             labelProps={ { id: "uploader" } }/>
@@ -112,7 +111,7 @@ export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
         <div className="divider"/>
 
         <Slider id="spectral-resolution" name="Resolution"
-                range={ new NumberRange(10, 16) }
+                range={ MusicAnalyzer.allowedResolutions }
                 step={ 1 }
                 value={ analyzer.resolution }
                 setValue={ r => analyzer.resolution = r }
@@ -122,9 +121,8 @@ export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
                     "Balanced",
                     "Fine",
                     "Finer",
-                    "Super",
-                    "Best",
-                ][r - 10] }
+                    "Finest",
+                ][r - MusicAnalyzer.allowedResolutions.start] }
                 displayWidth={ 4.5 }/>
     </div>;
 }
@@ -161,7 +159,7 @@ function Slider ({
                    const newValue = +(target as HTMLInputElement).value;
                    setValue(convertor!.convertForwards(newValue));
                    ((target as HTMLElement).nextElementSibling as HTMLElement)
-                       .innerText = displayText(newValue);
+                       .textContent = displayText(newValue);
                } }/>
         <span style={ { '--text-width': `${ displayWidth }em` } as any }>
             { displayText(convertor.convertBackwards(value)) }
@@ -171,7 +169,7 @@ function Slider ({
 
 export function handlePositionWheel (e: WheelEvent, player: MusicPlayer) {
     if (e.ctrlKey) return;
-    const scrollMultiplier = (e.altKey ? 0.1 : 1);
+    const scrollMultiplier = (e.altKey ? 0.05 : 1);
     player.position += e.deltaY / 100 * scrollMultiplier;
     e.preventDefault();
 }

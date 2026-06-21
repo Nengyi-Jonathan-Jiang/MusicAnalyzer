@@ -16,9 +16,9 @@
         flex-grow:        0;
         flex-shrink:      0;
         display:          inline-block;
-        width:            1px;
+        width:            0;
         height:           1.5em;
-        background-color: var(--medium-color);
+        border-left:      1px solid var(--medium-color);
         margin:           0 1em;
     }
 
@@ -57,7 +57,7 @@
         }
 
         > input[type="range"] {
-            width: 4.5em;
+            width:        4.5em;
             accent-color: var(--color-cyan);
         }
     }
@@ -84,13 +84,18 @@
 
 
 #uploader {
-    padding: .3em;
-    outline: 1px solid white;
+    padding:            .3em;
+    padding-inline:     .5em;
+    outline:            1px solid white;
 
-    &::before {
-        content:        "Upload";
-        padding-inline: .2em;
-    }
+    flex-grow:          10;
+    min-width:          0;
+    width: 4em;
+    max-width:          fit-content;
+
+    white-space:        nowrap;
+    overflow-x:         hidden;
+    text-overflow:      ellipsis;
 
     > input[type="file"] {
         display: none;

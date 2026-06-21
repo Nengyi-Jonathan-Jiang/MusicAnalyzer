@@ -7,6 +7,7 @@ import webfft from "webfft";
 import { AudioFile } from "@/logic/audioFile";
 import { now } from "tone";
 import { ExternalSmoother, Smoother } from "@/lib/utils/smoother";
+import { editArray } from "@/lib/utils/util";
 
 const windowFunctionCache = new Map<number, Float32Array>;
 let fftCache: [ webfft, number ] | null = null;
@@ -16,11 +17,8 @@ const { cos, hypot, log, exp } = Math;
 function getFFT (
     audio: AudioFile, startTime: number, resolution: number,
     loop: boolean = false,
-):
-    { mag: Float32Array; raw: Float32Array } | null {
+): Float32Array | null {
     const size: number = 1 << resolution;
-
-    const data: Float32Array = audio.getData(startTime, size, loop);
 
     let fft: webfft;
     if (fftCache?.[1] !== size) {
@@ -37,8 +35,8 @@ function getFFT (
     }
 
     if (!windowFunctionCache.has(resolution)) {
-        const arr = new Float32Array(data.length).map((_, i) => {
-            const x = 2 * Math.PI * i / data.length;
+        const arr = new Float32Array(size).map((_, i) => {
+            const x = 2 * Math.PI * i / size;
 
             // Blackman window
             // const alpha = 0.16;
@@ -48,32 +46,24 @@ function getFFT (
             // return a0 - a1 * cos(x) + a2 * cos(2 * x);
 
             // Hann window
-            return 0.5 - 0.5 * cos(x)
+            return 0.5 - 0.5 * cos(x);
         });
 
         windowFunctionCache.set(resolution, arr);
     }
 
-    const window = windowFunctionCache.get(resolution) as Float32Array;
-    for (let i = 0 ; i < data.length ; ++i) {
-        data[i] *= window[i];
+    // Apply window function and convert to complex
+    const window = windowFunctionCache.get(resolution)!;
+    const realData: Float32Array = audio.getData(startTime, size, loop);
+    const complexData = new Float32Array(size * 2);
+    for (let i = 0 ; i < size ; ++i) {
+        complexData[2 * i] = realData[i] * window[i];
     }
-
-    // Do Blackman window
-
 
     try {
-        const rawResult = fft.fft(data);
-
-        const magResult = new Float32Array(size).map(
-            (_, i) => hypot(rawResult[2 * i], rawResult[2 * i + 1]),
-        );
-
-        return {
-            mag: magResult,
-            raw: rawResult,
-        };
+        return fft.fft(complexData);
     }
+
     catch (e) {
         console.warn(e);
         return null;
@@ -86,14 +76,14 @@ export class MusicAnalyzer {
     #resolution: number;
     #smoothing: number;
 
-    static readonly smoother: ExternalSmoother<[number]> = new Smoother({
-        func(err, elapsedTime, decayConstant) {
-            return 0;
-        }
-    })
+    static readonly smoother: ExternalSmoother<[ number ]> = new Smoother({
+        func (_, elapsedTime, decayConstant) {
+            return Math.exp(-elapsedTime / decayConstant);
+        },
+    });
 
     constructor (
-        player: MusicPlayer, fftResolution: number = 12, smoothing = 0.5,
+        player: MusicPlayer, fftResolution: number = 13, smoothing = 0.6,
     ) {
         this.#player = player;
         this.#resolution = fftResolution;
@@ -119,10 +109,11 @@ export class MusicAnalyzer {
         return this.#smoothing;
     }
 
-    // resolution should be an integer in the range [4, 14]
+    public static readonly allowedResolutions: IntRange = new IntRange(11, 16);
+
     set resolution (resolution: number) {
-        if (resolution < 4 || resolution > 16) throw new Error(
-            'Invalid analyzer resolution');
+        if (!MusicAnalyzer.allowedResolutions.includes(resolution))
+            throw new Error('Invalid analyzer resolution');
         this.#resolution = resolution;
     }
 
@@ -136,35 +127,31 @@ export class MusicAnalyzer {
         return this.player.sampleRate / 2;
     }
 
-    get numBins () {
+    get fftSize () {
         return 1 << this.resolution;
     }
 
     get frequencyBinSize () {
-        return this.maxFrequency / this.numBins;
+        return this.maxFrequency / (this.fftSize / 2);
     }
 
     get binIndexToFrequencyConvertor () {
         return new LinearValueConvertor(this.frequencyBinSize, 0);
     }
 
-    getBinIndexRangeForFrequencies (frequencyRange: NumberRange) {
+    frequencyToBinIndexRange (frequencyRange: NumberRange) {
         return IntRange.smallestRangeContaining(
             convertRangeBackwards(
                 this.binIndexToFrequencyConvertor, frequencyRange),
-        ).trimmedToRange(new IntRange(0, this.numBins));
+        ).trimmedToRange(new IntRange(0, this.fftSize));
     }
-
-    #prevAnalysisTime = now();
 
     reAnalyze () {
         if (!this.player.isAudioLoaded) return;
 
         // Figure out how much smoothing to use
-        const elapsedTime = now() - this.#prevAnalysisTime;
-        this.#prevAnalysisTime += elapsedTime;
         const adjustedDecayTime = Math.max(
-            0.03, // This is a reasonable minimum decay time from experimenting
+            0.03, // This is a reasonable minimum decay time, from experiment
             this.#getAdjustedDecayTime(),
         );
 
@@ -173,29 +160,26 @@ export class MusicAnalyzer {
             this.player.audio,
             this.player.position,
             this.resolution,
-            this.player.doRepeat
+            this.player.doRepeat,
         );
+
         if (result === null) return;
 
-        const { mag: data } = result;
-
-        if (this.#analysisData.length !== data.length) {
-            this.#analysisData = data.map(i => log(i));
+        if (this.#analysisData.length !== this.fftSize) {
+            this.#analysisData = editArray(
+                new Float32Array(this.fftSize),
+                (_, i) => log(hypot(result[2 * i], result[2 * i] + 1)),
+            );
         }
         else {
-            this.#analysisData = new Float32Array(data.length).map((_, i) => {
-                const oldValue = this.#analysisData[i];
-                const newValue = log(data[i]);
-
-                if (isNaN(oldValue) || !isFinite(oldValue)) return newValue;
-
-                const a = Math.max(
-                    0.3, // Again reasonable I think
-                    exp(-elapsedTime / adjustedDecayTime),
+            const currTime = now();
+            editArray(this.#analysisData, (val, i) => {
+                return MusicAnalyzer.smoother.calculate(
+                    val, log(hypot(result[2 * i], result[2 * i] + 1)), currTime,
+                    adjustedDecayTime,
                 );
-
-                return newValue + (oldValue - newValue) * a;
             });
+            MusicAnalyzer.smoother.updateTime();
         }
     }
 
@@ -245,14 +229,14 @@ function getAdjustedDecayTime (
 }
 
 function lambertW0 (x: number): number {
-    return x * (1 + x * (-1 + x * (1.5 + x * -2.666666666666666)));
+    return x * (1 + x * (-1 + x * (1.5 + x * -2.6666666666666666)));
 }
 
 function findRoot (
     a: number, b: number, f: (x: number) => number,
     numIterations: number,
 ) {
-    // It turns out bisection method works well enough here
+    // Binary search is good enough
     while (numIterations-- > 0) {
         const m = (a + b) / 2, fm = f(m);
 

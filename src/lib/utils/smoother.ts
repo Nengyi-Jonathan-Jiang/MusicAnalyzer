@@ -2,16 +2,17 @@ import { clamp } from "./util";
 
 export namespace Smoother {
     /**
-     * A function returning the amount of interpolation between the old and new
-     * values. `err` is the difference between the current and old smoothed
-     * value: `err = curr - old`
+     * A function returning the amount of smoothing. `delta` is the difference
+     * between the current value and old smoothed value: `delta = curr - old`.
+     * The new value shall be calculated as `new <- curr - delta * R` or
+     * equivalently `new <- old + delta * (1 - R)` where `R` is the return value
+     * of the function, clamped to the range [0, 1].
      *
-     * A return value of 0 indicates directly using the new value and a return
-     * value of 1 indicates directly using the old value. Return values outside
-     * this range are clamped.
+     * When `R == 0`, this is equivalent to `new <- curr`; when `R == 1` this is
+     * equivalent to `new <- old`.
      */
     export type SmoothingFunction<P extends any[] = any[]>
-        = (err: number, elapsedTime: number, ...params: P) => number;
+        = (delta: number, elapsedTime: number, ...params: P) => number;
 
     export type Options<P extends any[] = any[]> = {
         initialValue?: number,
@@ -79,21 +80,21 @@ export class Smoother<P extends any[] = []> {
         if (!isFinite(newVal)) throw new Error(
             "Input to smoother must be finite");
 
-        const err = newVal - val;
+        const delta = newVal - val;
 
         if (!isFinite(this.lastTime)) this.lastTime = currTime;
         const elapsedTime = currTime - this.lastTime;
         this.currTime = currTime;
 
-        const interpolation = this.smoothFunc(err, elapsedTime, ...params);
+        const interpolation = this.smoothFunc(delta, elapsedTime, ...params);
         if (!isFinite(interpolation)) {
             throw new Error(
                 `smoothFunc returned bad number ${
                     interpolation
-                } on input ${ err }, ${ elapsedTime }, ${ params }`,
+                } on input ${ delta }, ${ elapsedTime }, ${ params }`,
             );
         }
-        return newVal - err * clamp(
+        return newVal - delta * clamp(
             interpolation,
             0, 1,
         );

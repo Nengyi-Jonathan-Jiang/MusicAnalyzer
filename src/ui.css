@@ -1,21 +1,21 @@
 :root {
-    --bg-color-dark:   #222;
-    --bg-color-light:  #333;
+    --bg-color-dark:  #222;
+    --bg-color-light: #333;
 
-    --color-red:   #f48;
+    --medium-color:   #666;
+    --fg-color:       #fff;
+
+    --color-red:      #f48;
     --color-purple:   #a8f;
-    --color-blue:   #48f;
-    --color-cyan:   #6ef;
-    --color-green:   #0c8;
+    --color-blue:     #48f;
+    --color-cyan:     #6ef;
+    --color-green:    #0c8;
     --color-yellow:   #fd8;
 
-    --medium-color:    #666;
-    --fg-color:        white;
+    overflow-x:       hidden;
 
-    overflow-x: hidden;
-
-    background: var(--bg-color-dark);
-    color: var(--fg-color);
+    background:       var(--bg-color-dark);
+    color:            var(--fg-color);
 }
 
 *, *::before, *::after {

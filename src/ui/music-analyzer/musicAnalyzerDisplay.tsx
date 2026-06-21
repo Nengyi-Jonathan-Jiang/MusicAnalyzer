@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { now, start } from "tone";
 import { MusicAnalyzer } from "@/logic/analyzer";
-import { clamp, useManualRerender } from "@/lib/utils/util";
+import { clamp, editArray, useManualRerender } from "@/lib/utils/util";
 
 import "./musicAnalyzer.css";
 import { MusicPlayer } from "@/logic/musicPlayer";
@@ -13,16 +13,14 @@ import {
 import { Canvas, TextAlignment } from "@/lib/canvas";
 import { IntRange, NumberRange } from "@/lib/utils/numberRange";
 import { LinearValueConvertor } from "@/lib/utils/valueConvertor";
-import { SubarrayView } from "@/lib/utils/subarrayView";
 import { MaximumFinder, MinMaxFinder } from "@/lib/utils/minMax";
 import {
     freqToMidi, midiNoteValueToString,
 } from "@/ui/music-analyzer/midiHelpers";
 import { AnimatedCanvas } from "@/ui/music-analyzer/animatedCanvas";
-import {
-    Controls, handlePositionWheel,
-} from "@/ui/music-analyzer/controls";
+import { Controls, handlePositionWheel } from "@/ui/music-analyzer/controls";
 import { Smoother } from "@/lib/utils/smoother";
+import { COLORS } from "@/css-colors";
 
 // Not exactly 27.5 - 4200 (A0 to C8) to leave space at ends
 const frequencyRange = new NumberRange(25, 4320);
@@ -34,15 +32,20 @@ const midiToXFrac = LinearValueConvertor.fittingRangeTo(
 
 const volumeSmoother = new Smoother({
     initialValue: 2.5,
-    func (err, elapsedTime) {
-        err = Math.max(err * 2, -1.125);
-        return Math.exp(-elapsedTime *
-            err ** 6 * (1.5 + err) ** 2,
-        );
+    func (dv, dt) {
+        if (dv === 0) return 0;
+
+        const er = Math.max(dv * 2, -1.125);
+        const decayFactor: number = er ** 6 * (1.5 + er) ** 2;
+        const res: number = clamp(Math.exp(-dt * decayFactor), 0, 1);
+
+        // The update is x <- x + dv (1 - R). Thus, to limit the rate of change,
+        // we want |dv (1 - R)| <= v * dt <==> R >= 1 - v * dt / |dv|
+        return Math.max(res, 1 - 4 * dt / Math.abs(dv));
     },
 });
 
-function normalizeAndProcessFFTData (data: SubarrayView<number>) {
+function normalizeAndProcessFFTData (data: Float32Array) {
     const decibelsRangeFinder = new MinMaxFinder();
 
     data.forEach(p => Number.isFinite(p) && decibelsRangeFinder.accept(p));
@@ -50,8 +53,8 @@ function normalizeAndProcessFFTData (data: SubarrayView<number>) {
     volumeSmoother.update(
         Math.max(decibelsRangeFinder.get().end, 1) + 1.5, now());
     const max = volumeSmoother.value;
-    const res = LinearValueConvertor.normalizing(new NumberRange(-2.5, max));
-    data.modifyEach(res.convertForwards);
+    const res = LinearValueConvertor.normalizing(new NumberRange(-0.5, max));
+    editArray(data, res.convertForwards);
     return res;
 }
 
@@ -78,15 +81,13 @@ function binPoints (p: [ number, number ][]): (readonly [ number, number ])[] {
 function redrawFFT (canvas: Canvas, analyzer: MusicAnalyzer) {
     if (!canvas.raw_ctx) return;
 
-    canvas.raw_ctx!.globalCompositeOperation = "source-over";
     canvas.clear();
+    canvas.strokeWidth = 2.1;
 
-    const data = new Float32Array(analyzer.analysisData);
-    const relevantBinIndexRange = analyzer.getBinIndexRangeForFrequencies(
-        frequencyRange,
-    );
+    const data = analyzer.analysisData.slice();
+    const binIndexRange = analyzer.frequencyToBinIndexRange(frequencyRange);
     const normalizeIntensity = normalizeAndProcessFFTData(
-        new SubarrayView<number>(data, relevantBinIndexRange),
+        data.subarray(binIndexRange.start, binIndexRange.end + 1),
     );
 
     // Calculate stuff
@@ -96,7 +97,7 @@ function redrawFFT (canvas: Canvas, analyzer: MusicAnalyzer) {
         midi: number, yFrac: number, fontSize: number, text: string
     }[] = [];
 
-    for (const i of relevantBinIndexRange) {
+    for (const i of binIndexRange) {
         const val = data[i];
 
         const frequency = i * analyzer.frequencyBinSize;
@@ -170,7 +171,8 @@ function redrawFFT (canvas: Canvas, analyzer: MusicAnalyzer) {
     }
 
     // Draw grid
-    canvas.strokeColor = "#ddd";
+    canvas.opacity = 0.5;
+    canvas.strokeColor = COLORS.medium_color;
     for (let intensity = -2 ; intensity <= 10 ; intensity++) {
         const normalized = normalizeIntensity.convertForwards(intensity);
         if (normalized < 0 || normalized > 1) {
@@ -179,14 +181,14 @@ function redrawFFT (canvas: Canvas, analyzer: MusicAnalyzer) {
         const y = canvas.height * (1 - normalized);
         canvas.immediateLine(0, y, canvas.width, y);
     }
-    canvas.strokeColor = "#aaa";
     for (const midi of midiRange) {
         const x = midiToXFrac.convertForwards(midi) * canvas.width;
         canvas.immediateLine(x, 0, x, canvas.height);
     }
+    canvas.opacity = 1;
 
     // Draw FFT
-    canvas.strokeColor = '#000';
+    canvas.strokeColor = COLORS.color_cyan;
     canvas.immediateStrokeSpline([ 0, 0 ], ...binnedData.map(([ x, y ]) => [
         midiToXFrac.convertForwards(x) * canvas.width,
         (1 - y) * canvas.height,
@@ -197,15 +199,14 @@ function redrawFFT (canvas: Canvas, analyzer: MusicAnalyzer) {
         for (const { midi, yFrac, text } of info) {
             const x = midiToXFrac.convertForwards(midi) * canvas.width;
             const y = (1 - yFrac) * canvas.height;
-            canvas.immediateFillCircle(x, y, 3);
+            canvas.immediateFillCircle(x, y, 2);
             canvas.immediateFillText(text, x, y - canvas.height * 0.03);
         }
     }
 
     // Draw grid text
-    canvas.fillColor = "#fff";
-    canvas.immediateFillRect(0, 0, canvas.width * 0.016, canvas.height);
-    canvas.fillColor = "#000";
+    canvas.fillColor = COLORS.fg_color;
+    canvas.clearRect(0, 0, canvas.width * 0.016, canvas.height);
     canvas.font = `${ canvas.width * 0.005 }px sans-serif`;
     for (let intensity = -2 ; intensity <= 10 ; intensity++) {
         const normalized = normalizeIntensity.convertForwards(intensity);
@@ -218,20 +219,29 @@ function redrawFFT (canvas: Canvas, analyzer: MusicAnalyzer) {
             canvas.width * 0.007, y,
         );
     }
-    canvas.fillColor = "#fff";
-    canvas.immediateFillRect(0, 0, canvas.width, canvas.height * 0.05);
-    canvas.fillColor = "#000";
+    canvas.clearRect(0, 0, canvas.width, canvas.height * 0.05);
     for (const midi of midiRange) {
         const x = midiToXFrac.convertForwards(midi) * canvas.width;
         const noteName = midiNoteValueToString(midi);
         canvas.immediateFillText(noteName, x, canvas.height * .025);
     }
+    canvas.strokeColor = COLORS.medium_color;
+    canvas.opacity = 0.5;
+    canvas.immediateLine(
+        canvas.width * 0.016, canvas.height,
+        canvas.width * 0.016, canvas.height * 0.05,
+    );
+    canvas.immediateLine(
+        0, canvas.height * 0.05,
+        canvas.width, canvas.height * 0.05,
+    );
+    canvas.opacity = 1;
 }
 
 function redrawWaveform (canvas: Canvas, player: MusicPlayer): void {
     canvas.clear();
 
-    canvas.strokeColor = '#aaa';
+    canvas.strokeColor = COLORS.fg_color;
     canvas.strokeWidth = 1;
 
     if (!player.isAudioLoaded) {
@@ -243,7 +253,7 @@ function redrawWaveform (canvas: Canvas, player: MusicPlayer): void {
     const x = player.audio.arr;
 
     canvas.beginNewPath();
-    canvas.beginSubPathAt(0, x[0] * canvas.height / 2);
+    canvas.beginSubPathAt(0, canvas.height / 2);
 
     let m = 0.1;
     for (let i = 0 ; i < 1 ; i += 0.0005) {
@@ -261,7 +271,7 @@ function redrawWaveform (canvas: Canvas, player: MusicPlayer): void {
 
     canvas.stroke();
 
-    canvas.strokeColor = 'black';
+    canvas.strokeColor = COLORS.bg_color_dark;
     canvas.strokeWidth = 2;
 
     const playFraction = clamp(
@@ -295,7 +305,7 @@ export function MusicAnalyzerDisplay () {
     useListenerOnWindow({
         listenerType: 'keydown', listener: useMemo<Listener<KeyboardEvent>>(
             () => e => {
-                if (e.key === ' ') {
+                if (e.key === ' ' && !e.repeat) {
                     e.preventDefault();
                     if (player.isPlaying) player.pause();
                     else player.play();
@@ -327,8 +337,8 @@ export function MusicAnalyzerDisplay () {
                 const bb = (e.target as HTMLCanvasElement).getBoundingClientRect();
                 const clickFraction = (e.clientX - bb.left) / bb.width;
                 player.position = clamp(clickFraction, 0, 1) * player.duration;
-            } } initializer={ canvas => {
-                canvas.clearColor = 'white';
+            } } initializer={ () => {
+
             } } animator={ canvas => {
                 canvas.resizeToFitCSS();
                 redrawWaveform(canvas, player);
@@ -336,13 +346,9 @@ export function MusicAnalyzerDisplay () {
         </div>
         <div id="spectrum">
             <AnimatedCanvas initializer={ canvas => {
-                canvas.fillColor = "black";
-                canvas.clearColor = 'white';
-                canvas.strokeWidth = 1;
                 canvas.textAlignment = TextAlignment.Center;
-                canvas.font = '11px sans-serif';
             } } animator={ canvas => {
-                canvas.resizeToFitCSS();
+                canvas.resizeToFitCSS(2);
                 redrawFFT(canvas, analyzer);
             } }/>
         </div>

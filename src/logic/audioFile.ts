@@ -46,7 +46,7 @@ export class AudioFile {
         return this._arr;
     }
 
-    #getExtendedData (padding: number, loop: boolean = false) {
+    #getExtendedArr (padding: number, loop: boolean = false) {
         const arr: Readonly<Float32Array> = this.arr;
         let length = padding * 2 + arr.length;
 
@@ -88,20 +88,23 @@ export class AudioFile {
 
     /**
      * Creates a slice of the data up to a point
+     *
+     * The returned array is a readonly view of length `2 * samples` around the
+     * given point
      */
-    public getData (time: number, samples: number, loop: boolean = false) {
+    public getData (
+        time: number, samples: number,
+        loop: boolean = false,
+    ): Readonly<Float32Array> {
         const sample = clamp(time * this.buffer.sampleRate, 0, this.arr.length);
 
-        // We are doing a window of 2 * samples because each sample spans over
-        // two indices (real and imaginary parts)
+        const index_center = Math.round(sample - samples * 0.25);
+        const index_start = index_center - (samples >> 1);
+        const index_end = index_center + samples - (samples >> 1);
 
-        const index_center = Math.round(sample - samples * 0.5);
-        const index_start = index_center - samples;
-        const index_end = index_center + samples;
-
-        const padding: number = samples * 2;
-        const extendedData = this.#getExtendedData(padding, loop);
-        return extendedData.slice(index_start + padding, index_end + padding);
+        const padding: number = samples;
+        const extendedArr = this.#getExtendedArr(padding, loop);
+        return extendedArr.subarray(index_start + padding, index_end + padding);
     }
 
     constructor (buffer: ToneAudioBuffer) {

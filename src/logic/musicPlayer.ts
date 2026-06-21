@@ -22,6 +22,9 @@ export class MusicPlayer {
 
     #doRepeat: boolean = false;
 
+    // Can replace with console.debug to enable logging of player events
+    private readonly debug: Function = () => void 0;
+
     constructor () {
         this.#player = new Player();
         this.#gain = new Gain(1, "gain");
@@ -30,6 +33,8 @@ export class MusicPlayer {
         this.#audio = new AudioFile(new ToneAudioBuffer());
         this.#player.onstop = () => {
             if (!this.#isPlaying) return;
+            this.debug('Player stopped naturally');
+            this.#player.stop();
             if (this.isFinished) {
                 this.#resumePosition = this.duration;
             }
@@ -48,6 +53,8 @@ export class MusicPlayer {
         if (this.#isPlaying || !this.isAudioLoaded) return;
         if (this.isFinished) this.#resumePosition = 0;
 
+        this.debug('Player started through play()');
+
         this.#isPlaying = true;
         this.#resumeTime = now();
 
@@ -59,6 +66,9 @@ export class MusicPlayer {
     pause () {
         this.#cancelAutoResume();
         if (!this.#isPlaying) return;
+
+        this.debug('Player stopped through pause()');
+
         this.#resumePosition = this.position;
         this.#isPlaying = false;
         this.#resumeTime = NaN;
@@ -69,6 +79,7 @@ export class MusicPlayer {
 
     #cancelAutoResume () {
         if (this.#autoResume !== null) {
+            this.debug('Canceled pending auto-resume');
             clearTimeout(this.#autoResume);
             this.#autoResume = null;
         }
@@ -76,8 +87,10 @@ export class MusicPlayer {
 
     #scheduleAutoResume (delay: number = MusicPlayer.#autoResumeDelay) {
         this.#cancelAutoResume();
+        this.debug('Scheduled auto-resume');
         const r = this.#autoResume = setTimeout(() => {
             this.play();
+            this.debug('Executed auto-resume');
             if (this.#autoResume === r) {
                 clearTimeout(r);
                 this.#autoResume = null;
@@ -132,12 +145,14 @@ export class MusicPlayer {
 
     set volume (value: number) {
         this.#volume = value;
-        this.#gain.gain.exponentialRampTo(value, 0.5);
+        this.#gain.gain.exponentialRampTo(value, 0.02);
     }
 
     rewind () {
+        const needsResume = this.#isPlaying;
         this.pause();
         this.position = 0;
+        if (needsResume) this.#scheduleAutoResume();
     }
 
     get isPlaying () {
@@ -169,7 +184,7 @@ export class MusicPlayer {
             this.#player.loop = false;
 
             // Fix raw position since it may be out of bounds iff repeat is on
-            if(this.#isPlaying) while (this.#rawPosition >= this.duration) {
+            if (this.#isPlaying) while (this.#rawPosition >= this.duration) {
                 this.#resumeTime += this.duration;
             }
         }

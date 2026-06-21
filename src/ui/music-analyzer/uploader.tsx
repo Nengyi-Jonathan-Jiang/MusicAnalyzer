@@ -1,22 +1,32 @@
 import {
-    DetailedHTMLProps, InputHTMLAttributes, LabelHTMLAttributes, useMemo,
+    createRef, DetailedHTMLProps, InputHTMLAttributes, LabelHTMLAttributes,
+    useMemo,
 } from "react";
 import { useListenerOnWindow } from "@/lib/react-utils/hooks";
 
 
 export function Uploader ({ callback, fileTypes, labelProps, inputProps }: {
-    callback: (url: string, onLoad: () => void) => any,
+    callback: (url: string, onLoad: () => void, fileName: string) => any,
     fileTypes: string[],
     labelProps?: DetailedHTMLProps<LabelHTMLAttributes<HTMLLabelElement>, HTMLLabelElement>,
     inputProps?: DetailedHTMLProps<InputHTMLAttributes<HTMLInputElement>, HTMLInputElement>,
 }) {
+    const labelRef = createRef<HTMLLabelElement>();
+
     function onUpload ({ target: { files } }: {
         target: { files: { length: number, [_: number]: File } | null }
     }) {
         if (!files?.length) return;
 
-        const urlObj = URL.createObjectURL(files[0]);
-        callback.call(null, urlObj, () => URL.revokeObjectURL(urlObj));
+        const file: File = files[0];
+        const urlObj = URL.createObjectURL(file);
+        (labelRef.current!.firstChild as Text).textContent = file.name;
+        callback.call(
+            null,
+            urlObj,
+            () => URL.revokeObjectURL(urlObj),
+            file.name,
+        );
     }
 
     useListenerOnWindow({
@@ -46,7 +56,8 @@ export function Uploader ({ callback, fileTypes, labelProps, inputProps }: {
         }, [ callback ]),
     });
 
-    return <label { ...labelProps }>
+    return <label { ...labelProps } ref={ labelRef }>
+        Upload
         <input type="file"
                accept={ fileTypes.join(', ') }
                onChange={ onUpload }
