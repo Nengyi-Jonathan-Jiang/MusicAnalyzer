@@ -2,6 +2,8 @@ import { Gain, getContext, now, Player, ToneAudioBuffer } from "tone";
 import { clamp } from "@/lib/utils/util";
 import { AudioFile } from "@/logic/audioFile";
 
+// TODO: integrate with media session API
+
 export class MusicPlayer {
     readonly #player: Player;
     readonly #gain: Gain;
@@ -188,7 +190,6 @@ export class MusicPlayer {
                 this.#resumeTime += this.duration;
             }
         }
-        // TODO: fix issue where
     }
 
     get isAudioLoaded () {

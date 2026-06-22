@@ -4,13 +4,14 @@
 
     --medium-color:   #666;
     --fg-color:       #fff;
+    --accent-color:   var(--color-cyan);
 
-    --color-red:      #f48;
-    --color-purple:   #a8f;
-    --color-blue:     #48f;
-    --color-cyan:     #6ef;
-    --color-green:    #0c8;
-    --color-yellow:   #fd8;
+    --color-red:      #ff6188;
+    --color-orange:   #fc9867;
+    --color-yellow:   #ffd866;
+    --color-green:    #a9dc76;
+    --color-cyan:     #78dce8;
+    --color-purple:   #ab9df2;
 
     overflow-x:       hidden;
 

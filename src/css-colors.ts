@@ -3,6 +3,7 @@ export const COLORS = {
     bg_color_light: "",
     medium_color:   "",
     fg_color:       "",
+    accent_color:   "",
     color_red:      "",
     color_purple:   "",
     color_blue:     "",

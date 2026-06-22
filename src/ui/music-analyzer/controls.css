@@ -58,7 +58,7 @@
 
         > input[type="range"] {
             width:        4.5em;
-            accent-color: var(--color-cyan);
+            accent-color: var(--accent-color);
         }
     }
 }
