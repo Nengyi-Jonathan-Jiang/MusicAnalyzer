@@ -29,8 +29,6 @@ export class AudioFile {
         const index_start = index_center - (samples >> 1);
         const index_end = index_center + samples - (samples >> 1);
 
-        debugger;
-
         const padding: number = samples;
         const extendedArr = this.#getExtendedArr(padding, loop);
         return extendedArr.subarray(index_start + padding, index_end + padding);

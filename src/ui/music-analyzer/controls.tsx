@@ -17,6 +17,8 @@ import PlayIcon from '@/icon/play.svg?react';
 import RepeatEnabledIcon from '@/icon/repeat-enabled.svg?react';
 import RepeatDisabledIcon from '@/icon/repeat-disabled.svg?react';
 import RewindIcon from '@/icon/rewind.svg?react';
+import { getStaticVariable } from "@/lib/utils/getStaticVariable";
+import { Smoother } from "@/lib/utils/smoother";
 
 const SUPPORTED_AUDIO_FORMATS: string[] = [
     ".mp3", ".m4a", ".mp4", ".wav", ".ogg", ".webm", ".flac",
@@ -30,24 +32,19 @@ export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
     const player = analyzer.player;
     const [ doRepeat, setDoRepeat ] = useState(player.doRepeat);
 
-    const ref = useRef<HTMLSpanElement>(null);
-    useEffect(() => {
-        if (ref.current) {
-            ref.current.textContent = '0.000';
-        }
-    }, []);
+    const positionRef = useRef<HTMLSpanElement>(null);
+    const fpsRef = useRef<HTMLSpanElement>(null);
 
     useAnimation(useMemo(() => () => {
-        if (ref.current) {
+        if (positionRef.current) {
             const s = `${ player.position.toFixed(2) }`;
-            if (ref.current.textContent !== s) {
-                ref.current.textContent = s;
+            if (positionRef.current.textContent !== s) {
+                positionRef.current.textContent = s;
             }
         }
-        analyzer.reAnalyze();
-    }, []));
+    }, [analyzer, player]));
 
-    useListenerOnElement(ref, {
+    useListenerOnElement(positionRef, {
         listenerType: 'wheel',
         listener:     useMemo(
             () => (e: WheelEvent) => handlePositionWheel(e, player),
@@ -55,6 +52,17 @@ export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
         ),
         passive:      false,
     });
+
+    useAnimation(useMemo(() => (t, dt) => {
+        const smoother = getStaticVariable(() => Smoother.exponential({}))
+        const fps = 1 / Math.max(dt, 0.0101); // Avoid infinities
+        smoother.update(fps, t, 0.5);
+        const s: string = `${Math.round(smoother.value)}`;
+
+        if(fpsRef.current && fpsRef.current.textContent !== s) {
+            fpsRef.current.textContent = s
+        }
+    }, []))
 
     return <div id="playback-controls">
         <Uploader
@@ -85,10 +93,16 @@ export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
                style={ { "--text-width": '3.5em' } as any }>
             <span>Current position: </span>
             <span
-                ref={ ref }>{ `${ player.position.toFixed(
+                ref={ positionRef }>{ `${ player.position.toFixed(
                 2) }` }</span>
         </label>
 
+        <div className="divider"/>
+        <label id="current-position-display"
+               style={ { "--text-width": '1em' } as any }>
+            <span>FPS: </span>
+            <span ref={ fpsRef }></span>
+        </label>
         <div className="divider"/>
         <div id="playback-controls-center"/>
         <div className="divider"/>

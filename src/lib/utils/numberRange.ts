@@ -101,6 +101,10 @@ export class NumberRange implements ReadonlyNumberRange {
             .setStart(Math.min(p1, p2))
             .setEnd(Math.max(p1, p2))
     }
+
+    toString() {
+        return `[${this.start}, ${this.end}]`
+    }
 }
 
 export class IntRange extends NumberRange implements ReadonlyIntRange {

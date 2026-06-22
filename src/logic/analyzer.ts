@@ -1,58 +1,38 @@
 import {
-    convertRangeBackwards, LinearValueConvertor,
+    convertRangeBackwards, convertRangeForwards, LinearValueConvertor,
 } from "@/lib/utils/valueConvertor";
 import { IntRange, NumberRange } from "@/lib/utils/numberRange";
 import { MusicPlayer } from "@/logic/musicPlayer";
-import webfft from "webfft";
-import { AudioFile } from "@/logic/audioFile";
 import { now } from "tone";
 import { ExternalSmoother, Smoother } from "@/lib/utils/smoother";
 import { editArray } from "@/lib/utils/util";
 import { Cache } from "@/lib/utils/cache";
-import CacheMultiple = Cache.CacheMultiple;
+import { getFFT } from "@/logic/fft";
+import CacheSingle = Cache.CacheSingle;
 
-const windowFunctionCache = new CacheMultiple<Float32Array, [ number ]>(
-    size => {
-        return editArray(new Float32Array(size), (_, i) => {
-            return 0.5 - 0.5 * cos(2 * Math.PI * i / size);
-        });
-    },
-);
-const fftCache = new CacheMultiple<webfft, [ number ]>(size => {
-    const res = new webfft(size);
-    res.setSubLibrary('kissWasm');
-    return res;
-});
+const { hypot, log, log10, exp } = Math;
 
-const { cos, hypot, log, log10, exp } = Math;
-
-function getFFT (
-    audio: AudioFile, startTime: number, resolution: number,
-    loop: boolean = false,
-): Float32Array | null {
-    const size: number = 1 << resolution;
-    const fft: webfft = fftCache.get(size);
-    const window = windowFunctionCache.get(size);
-    const data: Float32Array = audio.getData(startTime, size, loop);
-
-    try {
-        return fft.fft(editArray(
-            new Float32Array(size * 2),
-            (_, i) => i & 1 ? 0 : data[i >> 1] * window[i >> 1],
-        ));
-    }
-
-    catch (e) {
-        console.warn(e);
-        return null;
-    }
-}
+// TODO: consider using constant q transform instead
+//  https://gaborator.com/ or https://github.com/JorenSix/Gabber/tree/master
+//  or https://mtg.github.io/essentia.js/
+//  see https://doc.ml.tu-berlin.de/bbci/material/publications/Bla_constQ.pdf
+//  for paper,
+//  OR
+//  using a multi-resolution fft (run fft at successively lower sizes with
+//  downsampling), which won't require a separate library to be installed
+//
 
 export class MusicAnalyzer {
     readonly #player: MusicPlayer;
-    #analysisData: Float32Array = new Float32Array;
+    #analysisData = new CacheSingle<Float32Array, [ number, IntRange ]>(
+        (_, l) => {
+            console.log('invalidated analysis data');
+            return new Float32Array(l.numIntsInRange);
+        },
+    );
     #resolution: number;
     #smoothing: number;
+    #frequencyRange: NumberRange | null = null;
 
     static readonly smoother: ExternalSmoother<[ number ]> = new Smoother({
         func (_, elapsedTime, decayConstant) {
@@ -76,7 +56,7 @@ export class MusicAnalyzer {
      * Get the intensity (logarithmically scaled) of each frequency as an array
      */
     get analysisData (): Readonly<Float32Array> {
-        return this.#analysisData;
+        return this.#analysisData.get(this.fftSize, this.binIndexRange);
     }
 
     set smoothing (smoothing: number) {
@@ -113,15 +93,27 @@ export class MusicAnalyzer {
         return this.maxFrequency / (this.fftSize / 2);
     }
 
-    get binIndexToFrequencyConvertor () {
+    get #binIndexToFrequencyConvertor () {
         return new LinearValueConvertor(this.frequencyBinSize, 0);
     }
 
-    frequencyToBinIndexRange (frequencyRange: NumberRange) {
+    get frequencyRange (): NumberRange {
+        return this.#frequencyRange ?? convertRangeForwards(
+            this.#binIndexToFrequencyConvertor,
+            new IntRange(0, this.fftSize - 1),
+        );
+    }
+
+    set frequencyRange (value: NumberRange | null) {
+        this.#frequencyRange = value;
+    }
+
+    get binIndexRange (): IntRange {
         return IntRange.smallestRangeContaining(
             convertRangeBackwards(
-                this.binIndexToFrequencyConvertor, frequencyRange),
-        ).trimmedToRange(new IntRange(0, this.fftSize));
+                this.#binIndexToFrequencyConvertor, this.frequencyRange,
+            ),
+        ).trimmedToRange(new IntRange(0, this.fftSize - 1));
     }
 
     reAnalyze () {
@@ -145,24 +137,20 @@ export class MusicAnalyzer {
 
         // For nicer visuals, don't let the volume be too low
         const minVolume: number = 0.32;
-        if (this.#analysisData.length !== this.fftSize) {
-            this.#analysisData = editArray(
-                new Float32Array(this.fftSize),
-                (_, i) => log10(hypot(result[2 * i], result[2 * i + 1]) + minVolume),
+        const currTime = now();
+        editArray(this.analysisData, (val, i) => {
+            i += this.binIndexRange.start;
+            const real: any = result[2 * i];
+            const imag: any = result[2 * i + 1];
+
+            let newVal = log10(hypot(real, imag) + minVolume);
+            if (!isFinite(newVal)) newVal = 0;
+            return MusicAnalyzer.smoother.calculate(
+                val, newVal, currTime,
+                adjustedDecayTime,
             );
-        }
-        else {
-            const currTime = now();
-            editArray(this.#analysisData, (val, i) => {
-                let newVal = log10(hypot(result[2 * i], result[2 * i + 1]) + minVolume);
-                if (!isFinite(newVal)) newVal = 0;
-                return MusicAnalyzer.smoother.calculate(
-                    val, newVal, currTime,
-                    adjustedDecayTime,
-                );
-            });
-            MusicAnalyzer.smoother.updateTime();
-        }
+        }, ...this.binIndexRange.endpoints);
+        MusicAnalyzer.smoother.updateTime();
     }
 
     #getAdjustedDecayTime (): number {

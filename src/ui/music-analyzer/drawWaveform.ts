@@ -40,8 +40,10 @@ const simplifiedWaveform = new Cache.CacheSingle<
             max.accept(peak[i]);
         }
 
-        editArray(rms, i => i / max.get());
-        editArray(peak, i => i / max.get());
+        // Normalize data. In addition, raise to power of 0.8 to slightly reduce
+        // difference between soft and loud parts, for aesthetic reasons
+        editArray(rms, i => (i / max.get()) ** 0.8);
+        editArray(peak, i => (i / max.get()) ** 0.8);
 
         return {
             rms, peak, length,
@@ -50,7 +52,7 @@ const simplifiedWaveform = new Cache.CacheSingle<
     (arr, width) => `${ getObjectId(arr) }:${ width }`,
 );
 
-export function redrawWaveform (canvas: Canvas, player: MusicPlayer): void {
+export function drawWaveform (canvas: Canvas, player: MusicPlayer): void {
     canvas.clear();
 
     canvas.strokeColor = COLORS.fg_color;
@@ -64,12 +66,10 @@ export function redrawWaveform (canvas: Canvas, player: MusicPlayer): void {
         simplifiedWaveform.get(player.audio.audioData, canvas.width)
     );
 
-    // In following two steps, raise to power of 0.8 to slightly reduce
-    // difference between soft and loud parts, for aesthetic reasons
     canvas.opacity = 0.4;
     canvas.strokeColor = COLORS.accent_color;
     for (let i = 0 ; i < length ; i++) {
-        const val = peak[i] ** 0.8;
+        const val = peak[i];
 
         canvas.immediateLine(
             i + 0.5,
@@ -82,7 +82,7 @@ export function redrawWaveform (canvas: Canvas, player: MusicPlayer): void {
     canvas.opacity = 1;
     canvas.strokeColor = COLORS.fg_color;
     for (let i = 0 ; i < length ; i++) {
-        const val = rms[i] ** 0.8;
+        const val = rms[i];
 
         canvas.immediateLine(
             i + 0.5,

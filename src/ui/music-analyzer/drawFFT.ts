@@ -24,11 +24,10 @@ export function drawFFT (canvas: Canvas, analyzer: MusicAnalyzer) {
     canvas.clear();
     canvas.strokeWidth = 2.1;
 
+    analyzer.frequencyRange = frequencyRange;
+    analyzer.reAnalyze();
     const data = analyzer.analysisData.slice();
-    const binIndexRange = analyzer.frequencyToBinIndexRange(frequencyRange);
-    const normalizeIntensity = normalizeAndProcessFFTData(
-        data.subarray(binIndexRange.start, binIndexRange.end + 1),
-    );
+    const normalizeIntensity = normalizeVolume(data);
 
     // Calculate stuff
     const p: [ number, number ][] = [];
@@ -37,8 +36,8 @@ export function drawFFT (canvas: Canvas, analyzer: MusicAnalyzer) {
         midi: number, yFrac: number, fontSize: number, text: string
     }[] = [];
 
-    for (const i of binIndexRange) {
-        const val = data[i];
+    for (const i of analyzer.binIndexRange) {
+        const val = data[i - analyzer.binIndexRange.start];
 
         const frequency = i * analyzer.frequencyBinSize;
         const midi: number = freqToMidi.convertForwards(frequency);
@@ -129,7 +128,7 @@ export function drawFFT (canvas: Canvas, analyzer: MusicAnalyzer) {
 
     // Draw FFT
     canvas.strokeColor = COLORS.accent_color;
-    canvas.immediateStrokeSpline([ 0, 0 ], ...binnedData.map(([ x, y ]) => [
+    canvas.immediateStrokeSpline(...binnedData.map(([ x, y ]) => [
         midiToXFrac.convertForwards(x) * canvas.width,
         (1 - y) * canvas.height,
     ] as const));
@@ -178,19 +177,6 @@ export function drawFFT (canvas: Canvas, analyzer: MusicAnalyzer) {
     canvas.opacity = 1;
 }
 
-function normalizeAndProcessFFTData (data: Float32Array) {
-    const decibelsRangeFinder = new MaximumFinder();
-
-    data.forEach(p => Number.isFinite(p) && decibelsRangeFinder.accept(p));
-
-    volumeSmoother.update(
-        Math.max(decibelsRangeFinder.get() + 1, initialMaxVolume), now());
-    const max = volumeSmoother.value;
-    const res = LinearValueConvertor.normalizing(new NumberRange(-0.5, max));
-    editArray(data, res.convertForwards);
-    return res;
-}
-
 const initialMaxVolume = 0.5;
 const volumeSmoother = new Smoother({
     initialValue: initialMaxVolume,
@@ -207,10 +193,23 @@ const volumeSmoother = new Smoother({
     },
 });
 
+function normalizeVolume (data: Float32Array) {
+    const decibelsRangeFinder = new MaximumFinder();
+
+    data.forEach(p => Number.isFinite(p) && decibelsRangeFinder.accept(p));
+
+    volumeSmoother.update(
+        Math.max(decibelsRangeFinder.get() + 1, initialMaxVolume), now());
+    const max = volumeSmoother.value;
+    const res = LinearValueConvertor.normalizing(new NumberRange(-0.5, max));
+    editArray(data, res.convertForwards);
+    return res;
+}
+
 function binPoints (p: [ number, number ][]): (readonly [ number, number ])[] {
     const bins: Map<number, [ number, number ][]> = new Map;
     for (let [ x, y ] of p) {
-        x = Math.round(x * 4) / 4;
+        x = Math.round(x * 5) / 5;
         if (!bins.has(x)) bins.set(x, []);
         bins.get(x)!.push([ x, y ]);
     }

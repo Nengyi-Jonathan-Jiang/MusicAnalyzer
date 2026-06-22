@@ -15,7 +15,7 @@ import { AnimatedCanvas } from "@/ui/music-analyzer/animatedCanvas";
 import { Controls, handlePositionWheel } from "@/ui/music-analyzer/controls";
 import { drawFFT } from "@/ui/music-analyzer/drawFFT";
 
-import { redrawWaveform } from "@/ui/music-analyzer/drawWaveform";
+import { drawWaveform } from "@/ui/music-analyzer/drawWaveform";
 
 // TODO: add text when no music selected and while audio buffers are loading
 //
@@ -78,7 +78,7 @@ export function MusicAnalyzerDisplay () {
 
             } } animator={ canvas => {
                 canvas.resizeToFitCSS();
-                redrawWaveform(canvas, player);
+                drawWaveform(canvas, player);
             } } ref={ canvasRef }/>
         </div>
         <div id="spectrum">
