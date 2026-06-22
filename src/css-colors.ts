@@ -16,8 +16,6 @@ function initColors () {
     for (const key of (Object.keys(COLORS) as (keyof typeof COLORS)[])) {
         COLORS[key] = style.getPropertyValue(`--${ key.replaceAll('_', '-') }`);
     }
-
-    console.log(style, COLORS);
 }
 
 if(document.readyState === 'loading') {

@@ -1,113 +1,121 @@
 import { ToneAudioBuffer } from "tone";
 import { clamp } from "@/lib/utils/util";
+import { Cache } from "@/lib/utils/cache";
+import CacheSingle = Cache.CacheSingle;
 
 const emptyArray = new Float32Array(2 << 16);
 
 export class AudioFile {
     public readonly buffer: ToneAudioBuffer;
-    private _arr: Float32Array | null = null;
 
-    // Arrays for faster access to audio data
-
-    /** zero-padded data */
-    private _zero_extended_data: Float32Array | null = null;
-    /** repeat-padded data */
-    private _repeat_extended_data: Float32Array | null = null;
-    /** zeroed out data, special case when arr is empty */
-    private _empty_data: Float32Array | null = null;
-
-    get arr (): Readonly<Float32Array> {
-        if (this._arr === null) {
-            if (!this.buffer.loaded) {
-                return emptyArray;
-            }
-
-            let arr = this.buffer.toArray();
-
-            // Collapse stereo to mono for analysis
-            if (!(arr instanceof Float32Array)) {
-                const channels = arr;
-                arr = new Float32Array(channels[0].length);
-                for (const channel of channels) {
-                    for (let i = 0 ; i < arr.length ; i++) {
-                        arr[i] += channel[i];
-                    }
-                }
-
-                for (let i = 0 ; i < arr.length ; i++) {
-                    arr[i] /= channels.length;
-                }
-
-                this.buffer.fromArray(arr);
-            }
-
-            this._arr = arr;
-        }
-        return this._arr;
-    }
-
-    #getExtendedArr (padding: number, loop: boolean = false) {
-        const arr: Readonly<Float32Array> = this.arr;
-        let length = padding * 2 + arr.length;
-
-        if (arr.length === 0) {
-            return (this._empty_data ??= new Float32Array(length));
-        }
-
-        if (loop) {
-            if (this._repeat_extended_data?.length == length) {
-                return this._repeat_extended_data;
-            }
-            this._repeat_extended_data = new Float32Array(length);
-
-            // Keep track of what we left unfilled by lifting loop variable out
-            let i1, i2;
-            for (i1 = padding ; i1 >= arr.length ; i1 -= arr.length) {
-                this._repeat_extended_data.set(arr, i1 - arr.length);
-            }
-            for (i2 = padding ; i2 + arr.length <= length ; i2 += arr.length) {
-                this._repeat_extended_data.set(arr, i2);
-            }
-            // Now 0 <= i1 < arr.length; length - arr.length < i2 <= length
-
-            // Fill in incomplete repeats at the ends
-            this._repeat_extended_data.set(arr.slice(arr.length - i1), 0);
-            this._repeat_extended_data.set(arr.slice(0, length - i2), i2);
-
-            return this._repeat_extended_data;
-        }
-        else {
-            if (this._zero_extended_data?.length == length) {
-                return this._zero_extended_data;
-            }
-            this._zero_extended_data = new Float32Array(length);
-            this._zero_extended_data.set(arr, padding);
-            return this._zero_extended_data;
-        }
+    constructor (buffer: ToneAudioBuffer) {
+        this.buffer = buffer;
     }
 
     /**
-     * Creates a slice of the data up to a point
+     * Creates a slice of the data around a point
      *
-     * The returned array is a readonly view of length `2 * samples` around the
-     * given point
+     * The returned array is a readonly (by convention) view of length `samples`
      */
     public getData (
         time: number, samples: number,
         loop: boolean = false,
     ): Readonly<Float32Array> {
-        const sample = clamp(time * this.buffer.sampleRate, 0, this.arr.length);
+        const sample = clamp(
+            time * this.buffer.sampleRate, 0, this.audioData.length,
+        );
 
         const index_center = Math.round(sample - samples * 0.25);
         const index_start = index_center - (samples >> 1);
         const index_end = index_center + samples - (samples >> 1);
+
+        debugger;
 
         const padding: number = samples;
         const extendedArr = this.#getExtendedArr(padding, loop);
         return extendedArr.subarray(index_start + padding, index_end + padding);
     }
 
-    constructor (buffer: ToneAudioBuffer) {
-        this.buffer = buffer;
+    get audioData (): Readonly<Float32Array> {
+        if (!this.buffer.loaded) return emptyArray;
+        return this.#audioData.get();
     }
+
+    readonly #audioData = new CacheSingle<Float32Array>(() => {
+        let res = this.buffer.toArray();
+
+        // Collapse stereo to mono
+        if (!(res instanceof Float32Array)) {
+            const channels = res;
+            res = new Float32Array(channels[0].length);
+            for (const channel of channels) {
+                for (let i = 0 ; i < res.length ; i++) {
+                    res[i] += channel[i];
+                }
+            }
+
+            for (let i = 0 ; i < res.length ; i++) {
+                res[i] /= channels.length;
+            }
+
+            this.buffer.fromArray(res);
+        }
+
+        return res;
+    });
+
+    #getExtendedArr (padding: number, loop: boolean = false) {
+        const arr: Readonly<Float32Array> = this.audioData;
+        return (
+            arr.length === 0 ? this.#emptyData : loop
+                ? this.#loopedData
+                : this.#paddedData
+        ).get(arr.length, padding);
+    }
+
+
+    readonly #emptyData = new CacheSingle<Float32Array, [ number, number ]>(
+        (len, pad) => new Float32Array(len + pad * 2),
+    );
+    readonly #paddedData = new CacheSingle<Float32Array, [ number, number ]>(
+        (len, pad) => {
+            const res = new Float32Array(len + pad * 2);
+            res.set(this.audioData, pad);
+            return res;
+        },
+    );
+    readonly #loopedData = new CacheSingle<Float32Array, [ number, number ]>(
+        (len, pad) => {
+            // [ padding ] [ main data ] [ padding ]
+            const res = new Float32Array(len + pad * 2),
+                  arr = this.audioData;
+
+            let i1, i2; // Lifted out of loops so we can use them later
+
+            // Add enough whole copies of arr to fill padding at start
+            for (i1 = pad - len ; i1 >= 0 ; i1 -= len) {
+                res.set(arr, i1);
+            }
+            // Add main data
+            res.set(arr, pad);
+            // Add enough whole copies of arr to fill padding at end
+            for (i2 = pad + len ; i2 + len <= len + pad * 2 ; i2 += len) {
+                res.set(arr, i2);
+            }
+
+            // i1 should be negative, marking where another copy of arr would
+            // have been inserted had it not fallen off the start. Thus, we need
+            // to chop off the first |i1| elements and copy the rest into the
+            // start of the array
+            res.set(arr.subarray(-i1), 0);
+            // i2 should be within len of len + pad * 2 (a.k.a. res.length),
+            // marking where another copy would have been inserted had it not
+            // fallen off the end. Thus, we need to copy another res.length - i2
+            // elements into the end of the array
+            res.set(arr.subarray(0, res.length - i2), i2);
+
+            return res;
+        },
+    );
+
 }

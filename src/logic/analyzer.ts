@@ -8,60 +8,38 @@ import { AudioFile } from "@/logic/audioFile";
 import { now } from "tone";
 import { ExternalSmoother, Smoother } from "@/lib/utils/smoother";
 import { editArray } from "@/lib/utils/util";
+import { Cache } from "@/lib/utils/cache";
+import CacheMultiple = Cache.CacheMultiple;
 
-const windowFunctionCache = new Map<number, Float32Array>;
-let fftCache: [ webfft, number ] | null = null;
+const windowFunctionCache = new CacheMultiple<Float32Array, [ number ]>(
+    size => {
+        return editArray(new Float32Array(size), (_, i) => {
+            return 0.5 - 0.5 * cos(2 * Math.PI * i / size);
+        });
+    },
+);
+const fftCache = new CacheMultiple<webfft, [ number ]>(size => {
+    const res = new webfft(size);
+    res.setSubLibrary('kissWasm');
+    return res;
+});
 
-const { cos, hypot, log, exp } = Math;
+const { cos, hypot, log, log10, exp } = Math;
 
 function getFFT (
     audio: AudioFile, startTime: number, resolution: number,
     loop: boolean = false,
 ): Float32Array | null {
     const size: number = 1 << resolution;
-
-    let fft: webfft;
-    if (fftCache?.[1] !== size) {
-        if (fftCache && fftCache[0]) {
-            fftCache[0].dispose();
-        }
-
-        fft = new webfft(size);
-        fft.setSubLibrary('kissWasm');
-        fftCache = [ fft, size ];
-    }
-    else {
-        fft = fftCache[0];
-    }
-
-    if (!windowFunctionCache.has(resolution)) {
-        const arr = new Float32Array(size).map((_, i) => {
-            const x = 2 * Math.PI * i / size;
-
-            // Blackman window
-            // const alpha = 0.16;
-            // const a0 = 0.5 * (1 - alpha);
-            // const a1 = 0.5;
-            // const a2 = 0.5 * alpha;
-            // return a0 - a1 * cos(x) + a2 * cos(2 * x);
-
-            // Hann window
-            return 0.5 - 0.5 * cos(x);
-        });
-
-        windowFunctionCache.set(resolution, arr);
-    }
-
-    // Apply window function and convert to complex
-    const window = windowFunctionCache.get(resolution)!;
-    const realData: Float32Array = audio.getData(startTime, size, loop);
-    const complexData = new Float32Array(size * 2);
-    for (let i = 0 ; i < size ; ++i) {
-        complexData[2 * i] = realData[i] * window[i];
-    }
+    const fft: webfft = fftCache.get(size);
+    const window = windowFunctionCache.get(size);
+    const data: Float32Array = audio.getData(startTime, size, loop);
 
     try {
-        return fft.fft(complexData);
+        return fft.fft(editArray(
+            new Float32Array(size * 2),
+            (_, i) => i & 1 ? 0 : data[i >> 1] * window[i >> 1],
+        ));
     }
 
     catch (e) {
@@ -165,17 +143,21 @@ export class MusicAnalyzer {
 
         if (result === null) return;
 
+        // For nicer visuals, don't let the volume be too low
+        const minVolume: number = 0.32;
         if (this.#analysisData.length !== this.fftSize) {
             this.#analysisData = editArray(
                 new Float32Array(this.fftSize),
-                (_, i) => log(hypot(result[2 * i], result[2 * i] + 1)),
+                (_, i) => log10(hypot(result[2 * i], result[2 * i + 1]) + minVolume),
             );
         }
         else {
             const currTime = now();
             editArray(this.#analysisData, (val, i) => {
+                let newVal = log10(hypot(result[2 * i], result[2 * i + 1]) + minVolume);
+                if (!isFinite(newVal)) newVal = 0;
                 return MusicAnalyzer.smoother.calculate(
-                    val, log(hypot(result[2 * i], result[2 * i] + 1)), currTime,
+                    val, newVal, currTime,
                     adjustedDecayTime,
                 );
             });

@@ -22,6 +22,10 @@ const SUPPORTED_AUDIO_FORMATS: string[] = [
     ".mp3", ".m4a", ".mp4", ".wav", ".ogg", ".webm", ".flac",
 ];
 
+// TODO: cache last used file? See https://emnudge.dev/notes/cache-api/ or
+//  https://developer.mozilla.org/en-US/docs/Web/API/File_System_API or
+//  https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API
+
 export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
     const player = analyzer.player;
     const [ doRepeat, setDoRepeat ] = useState(player.doRepeat);
