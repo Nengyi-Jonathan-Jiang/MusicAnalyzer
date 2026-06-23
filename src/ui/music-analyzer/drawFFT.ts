@@ -3,7 +3,7 @@ import { IntRange, NumberRange } from "@/lib/utils/numberRange";
 import { MaximumFinder } from "@/lib/utils/minMax";
 import { now } from "tone";
 import { LinearValueConvertor } from "@/lib/utils/valueConvertor";
-import { clamp, editArray } from "@/lib/utils/util";
+import { clamp } from "@/lib/utils/util";
 import { Smoother } from "@/lib/utils/smoother";
 import { Canvas } from "@/lib/canvas";
 import { MusicAnalyzer } from "@/logic/analyzer";

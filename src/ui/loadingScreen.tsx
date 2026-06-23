@@ -1,6 +1,6 @@
-"use client"
+"use client";
 
-import {PropsWithChildren, useEffect, useState} from "react";
+import { PropsWithChildren, useEffect, useState } from "react";
 
 export default function LoadingScreen({children} : PropsWithChildren) {
     const [isMounted, setIsMounted] = useState(false);
