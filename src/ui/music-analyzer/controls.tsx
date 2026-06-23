@@ -19,6 +19,7 @@ import RepeatDisabledIcon from '@/icon/repeat-disabled.svg?react';
 import RewindIcon from '@/icon/rewind.svg?react';
 import { getStaticVariable } from "@/lib/utils/getStaticVariable";
 import { Smoother } from "@/lib/utils/smoother";
+import { magnet } from "@/lib/utils/math";
 
 const SUPPORTED_AUDIO_FORMATS: string[] = [
     ".mp3", ".m4a", ".mp4", ".wav", ".ogg", ".webm", ".flac",
@@ -47,7 +48,12 @@ export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
     useAnimation(useMemo(() => (t, dt) => {
         const smoother = getStaticVariable(() => Smoother.exponential({}));
         const fps = 1 / Math.max(dt, 0.0101); // Avoid infinities
-        smoother.update(fps, t, 0.5);
+        smoother.update(
+            // "magnet" the fps towards 30 (drop ever other frame) and
+            // 60 (full fps), which are the most common scenarios
+            fps + magnet(fps, 30, 4, 2) + magnet(fps, 60, 1.8, 2),
+            t, 0.5
+        );
 
         if (fpsRef.current) {
             const node = fpsRef.current.childNodes[0] as Text;

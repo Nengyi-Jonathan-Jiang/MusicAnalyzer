@@ -1,10 +1,11 @@
 import { Canvas } from "@/lib/canvas";
 import { MusicPlayer } from "@/logic/musicPlayer";
 import { COLORS } from "@/css-colors";
-import { clamp, editArray } from "@/lib/utils/util";
+import { editArray } from "@/lib/utils/util";
 import { Cache } from "@/lib/utils/cache";
 import { MaximumFinder } from "@/lib/utils/minMax";
 import { getObjectId } from "@/lib/utils/hash";
+import { clamp } from "@/lib/utils/math";
 
 const simplifiedWaveform = new Cache.CacheSingle<
     { rms: Float32Array, peak: Float32Array, length: number },
@@ -53,11 +54,11 @@ const simplifiedWaveform = new Cache.CacheSingle<
 );
 
 export function drawWaveform (canvas: Canvas, player: MusicPlayer): void {
+    canvas.opacity = 1;
     canvas.clear();
 
     canvas.strokeColor = COLORS.fg_color;
     canvas.strokeWidth = 1;
-    canvas.opacity = 1;
     canvas.immediateLine(0, canvas.height / 2, canvas.width, canvas.height / 2);
 
     if (!player.isAudioLoaded) return;

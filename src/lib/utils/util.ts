@@ -66,10 +66,6 @@ export function arraysEqual<T> (a: ArrayLike<T>[], b: ArrayLike<T>[]) {
     return true;
 }
 
-export function clamp (x: number, min: number, max: number) {
-    return x < min ? min : x > max ? max : x;
-}
-
 /**
  * A custom react hook. Returns a function `rerender()` which forces the
  * component to update

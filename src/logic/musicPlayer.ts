@@ -1,7 +1,7 @@
 import { Gain, getContext, now, Player, ToneAudioBuffer } from "tone";
-import { clamp } from "@/lib/utils/util";
 import { AudioFile } from "@/logic/audioFile";
 import { setWeakInterval } from "@/lib/utils/weakSetInterval";
+import { clamp } from "@/lib/utils/math";
 
 // TODO: integrate with media session API
 

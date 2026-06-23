@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from "react";
 import { start } from "tone";
 import { MusicAnalyzer } from "@/logic/analyzer";
-import { clamp, useManualRerender } from "@/lib/utils/util";
+import { useManualRerender } from "@/lib/utils/util";
 
 import "./musicAnalyzer.css";
 import { MusicPlayer } from "@/logic/musicPlayer";
@@ -16,6 +16,7 @@ import { Controls, handlePositionWheel } from "@/ui/music-analyzer/controls";
 import { drawFFT } from "@/ui/music-analyzer/drawFFT";
 
 import { drawWaveform } from "@/ui/music-analyzer/drawWaveform";
+import { clamp } from "@/lib/utils/math";
 
 // TODO: add text when no music selected and while audio buffers are loading
 //

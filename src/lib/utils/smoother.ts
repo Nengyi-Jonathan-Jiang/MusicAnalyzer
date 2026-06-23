@@ -1,4 +1,4 @@
-import { clamp } from "./util";
+import { clamp } from "@/lib/utils/math";
 
 export namespace Smoother {
     /**
@@ -38,6 +38,10 @@ export class Smoother<P extends any[] = []> {
     }
 
     get value () {
+        return this.val;
+    }
+
+    valueOf() {
         return this.val;
     }
 

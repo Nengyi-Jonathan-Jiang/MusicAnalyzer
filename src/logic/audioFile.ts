@@ -1,7 +1,7 @@
 import { ToneAudioBuffer } from "tone";
-import { clamp } from "@/lib/utils/util";
 import { Cache } from "@/lib/utils/cache";
 import CacheSingle = Cache.CacheSingle;
+import { clamp } from "@/lib/utils/math";
 
 const emptyArray = new Float32Array(2 << 16);
 

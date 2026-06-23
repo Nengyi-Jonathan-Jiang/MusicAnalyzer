@@ -23,17 +23,28 @@ const { hypot, log, log10, exp } = Math;
 
 export class MusicAnalyzer {
     readonly #player: MusicPlayer;
-    #analysisData = new CacheSingle<Float32Array, [ number, IntRange ]>(
-        (_, l) => {
-            console.log('invalidated analysis data');
-            return new Float32Array(l.numIntsInRange);
-        },
-    );
+
     #resolution: number;
     #smoothing: number;
-    // These two will be correctly set in constructor
+    // Ranges to restrict computation for performance. These two will be
+    // correctly initialized in constructor
     #frequencyRange: NumberRange = null as any;
     #binIndexRange: IntRange = null as any;
+    // FFT results
+    #rawFFT = new CacheSingle<Float32Array, [ number, IntRange ]>(
+        (_, range) => {
+            return new Float32Array(range.numIntsInRange);
+        },
+    );
+
+    #smoothedFFT = new CacheSingle<Float32Array, [ number, IntRange ]>(
+        (_, range) => {
+            return new Float32Array(range.numIntsInRange);
+        },
+    );
+
+    // For nicer visuals, don't let the volume be too low
+    static readonly #minVolumeSq: number = 0.101;
 
     static readonly smoother: ExternalSmoother<[ number ]> = new Smoother({
         func (_, elapsedTime, decayConstant) {
@@ -54,11 +65,12 @@ export class MusicAnalyzer {
         return this.#player;
     }
 
-    /**
-     * Get the intensity (logarithmically scaled) of each frequency as an array
-     */
-    get analysisData (): Readonly<Float32Array> {
-        return this.#analysisData.get(this.fftSize, this.binIndexRange);
+    get rawFFT (): Float32Array {
+        return this.#rawFFT.get(this.fftSize, this.binIndexRange);
+    }
+
+    get smoothedFFT (): Readonly<Float32Array> {
+        return this.#smoothedFFT.get(this.fftSize, this.binIndexRange);
     }
 
     set smoothing (smoothing: number) {
@@ -122,35 +134,48 @@ export class MusicAnalyzer {
     reAnalyze () {
         if (!this.player.isAudioLoaded) return;
 
-        // Figure out how much smoothing to use
-        const adjustedDecayTime = Math.max(
-            0.03, // This is a reasonable minimum decay time, from experiment
-            this.#getAdjustedDecayTime(),
-        );
-
-        // Compute
-        let result = getFFT(
+        const fft = getFFT(
             this.player.audio,
             this.player.position,
             this.resolution,
             this.player.doRepeat,
         );
 
-        if (result === null) return;
+        if (fft !== null) {
+            const res = this.rawFFT;
 
-        // For nicer visuals, don't let the volume be too low
-        const minVolume: number = 0.32;
+            for (let i = 0 ; i < res.length ; i++) {
+                const real = fft[2 * (i + this.binIndexRange.start)];
+                const imag = fft[2 * (i + this.binIndexRange.start) + 1];
+                res[i] = 0.5 * log10(real * real + imag * imag +
+                    MusicAnalyzer.#minVolumeSq,
+                );
+            }
+        }
+    }
+
+
+    updateSmoothed () {
+        // Figure out how much smoothing to use
+        const adjustedDecayTime = Math.max(
+            0.03, // This is a reasonable minimum decay time, from experiment
+            this.#getAdjustedDecayTime(),
+        );
+
+        const result = this.rawFFT;
+
         const currTime = now();
 
-        const data: Float32Array = this.analysisData;
+        const data: Float32Array = this.smoothedFFT;
         for (let i = 0 ; i < data.length ; i++) {
-            const real: any = result[2 * (i + this.binIndexRange.start)];
-            const imag: any = result[2 * (i + this.binIndexRange.start) + 1];
+            let oldVal = data[i];
+            let newVal = result[i];
 
-            let newVal = log10(hypot(real, imag) + minVolume);
             if (!isFinite(newVal)) newVal = 0;
+            if (!isFinite(oldVal)) oldVal = 0;
+
             data[i] = MusicAnalyzer.smoother.calculate(
-                data[i], newVal, currTime,
+                oldVal, newVal, currTime,
                 adjustedDecayTime,
             );
         }
