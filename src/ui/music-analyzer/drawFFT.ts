@@ -47,6 +47,8 @@ export function drawFFT (canvas: Canvas, analyzer: MusicAnalyzer) {
     }
 
     // Bin lines to reduce spline size.
+    // TODO: cache binning calculations (which indices to which bins; bin sizes)
+    //  since those are constant
     const binnedData = binPoints(p);
     const binIndices = IntRange.forIndicesOf(binnedData);
     const f = (i: number) => binnedData[i][1];
@@ -202,7 +204,7 @@ function normalizeVolume (data: Float32Array) {
         Math.max(decibelsRangeFinder.get() + 1, initialMaxVolume), now());
     const max = volumeSmoother.value;
     const res = LinearValueConvertor.normalizing(new NumberRange(-0.5, max));
-    editArray(data, res.convertForwards);
+    for(let i = 0; i < data.length; i++) data[i] = res.convertForwards(data[i])
     return res;
 }
 
@@ -217,10 +219,10 @@ function binPoints (p: [ number, number ][]): (readonly [ number, number ])[] {
         ([ _, p ]) => {
             const [ px, py ] = [ 0, 1 ].map(i => p.map(j => j[i]));
 
-            const py_total: number = py.reduce((a, b) => a + b ** 3, 0);
+            const py_total: number = py.reduce((a, b) => a + b ** 4, 0);
             return [
                 px.reduce((a, b) => a + b, 0) / p.length,
-                (py_total / p.length) ** 0.3333,
+                (py_total / p.length) ** 0.25,
             ] as const;
         },
     ).sort((a, b) => a[0] - b[0]);

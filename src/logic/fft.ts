@@ -1,8 +1,8 @@
 import webfft from "webfft";
 import { editArray } from "@/lib/utils/util";
 import { AudioFile } from "@/logic/audioFile";
-import CacheMultiple = Cache.CacheMultiple;
 import { Cache } from "@/lib/utils/cache";
+import CacheMultiple = Cache.CacheMultiple;
 
 const windowFunctionCache = new CacheMultiple<Float32Array, [ number ]>(
     size => {
@@ -18,20 +18,26 @@ const fftCache = new CacheMultiple<webfft, [ number ]>(size => {
     return res;
 });
 
+const inputArrayCache = new CacheMultiple<Float32Array, [ number ]>(
+    size => new Float32Array(size * 2),
+);
+
 export function getFFT (
     audio: AudioFile, startTime: number, resolution: number,
     loop: boolean = false,
 ): Float32Array | null {
     const size: number = 1 << resolution;
-    const fft: webfft = fftCache.get(size);
+    const fft = fftCache.get(size);
     const window = windowFunctionCache.get(size);
-    const data: Float32Array = audio.getData(startTime, size, loop);
+    const data = audio.getData(startTime, size, loop);
+    const input = inputArrayCache.get(size);
+
+    for (let i = 0 ; i < input.length ; i++) {
+        input[i] = i & 1 ? 0 : data[i >> 1] * window[i >> 1];
+    }
 
     try {
-        return fft.fft(editArray(
-            new Float32Array(size * 2),
-            (_, i) => i & 1 ? 0 : data[i >> 1] * window[i >> 1],
-        ));
+        return fft.fft(input);
     }
 
     catch (e) {

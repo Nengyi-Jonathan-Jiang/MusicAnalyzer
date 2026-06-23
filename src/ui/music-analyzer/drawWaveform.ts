@@ -81,16 +81,18 @@ export function drawWaveform (canvas: Canvas, player: MusicPlayer): void {
 
     canvas.opacity = 1;
     canvas.strokeColor = COLORS.fg_color;
+    canvas.beginNewPath();
     for (let i = 0 ; i < length ; i++) {
         const val = rms[i];
 
-        canvas.immediateLine(
+        canvas.line(
             i + 0.5,
             canvas.height * (1 + val * 0.8) / 2,
             i + 0.5,
             canvas.height * (1 - val * 0.8) / 2,
         );
     }
+    canvas.stroke();
 
     const playFraction = clamp(player.position / player.duration, 0, 1);
     canvas.strokeWidth = 2;

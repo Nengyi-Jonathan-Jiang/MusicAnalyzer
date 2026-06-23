@@ -5,7 +5,6 @@ import { IntRange, NumberRange } from "@/lib/utils/numberRange";
 import { MusicPlayer } from "@/logic/musicPlayer";
 import { now } from "tone";
 import { ExternalSmoother, Smoother } from "@/lib/utils/smoother";
-import { editArray } from "@/lib/utils/util";
 import { Cache } from "@/lib/utils/cache";
 import { getFFT } from "@/logic/fft";
 import CacheSingle = Cache.CacheSingle;
@@ -32,7 +31,9 @@ export class MusicAnalyzer {
     );
     #resolution: number;
     #smoothing: number;
-    #frequencyRange: NumberRange | null = null;
+    // These two will be correctly set in constructor
+    #frequencyRange: NumberRange = null as any;
+    #binIndexRange: IntRange = null as any;
 
     static readonly smoother: ExternalSmoother<[ number ]> = new Smoother({
         func (_, elapsedTime, decayConstant) {
@@ -46,6 +47,7 @@ export class MusicAnalyzer {
         this.#player = player;
         this.#resolution = fftResolution;
         this.#smoothing = smoothing;
+        this.frequencyRange = null;
     }
 
     get player () {
@@ -98,22 +100,23 @@ export class MusicAnalyzer {
     }
 
     get frequencyRange (): NumberRange {
-        return this.#frequencyRange ?? convertRangeForwards(
-            this.#binIndexToFrequencyConvertor,
-            new IntRange(0, this.fftSize - 1),
-        );
+        return this.#frequencyRange;
     }
 
     set frequencyRange (value: NumberRange | null) {
-        this.#frequencyRange = value;
-    }
-
-    get binIndexRange (): IntRange {
-        return IntRange.smallestRangeContaining(
+        this.#frequencyRange = value ?? convertRangeForwards(
+            this.#binIndexToFrequencyConvertor,
+            new IntRange(0, this.fftSize - 1),
+        );
+        this.#binIndexRange = IntRange.smallestRangeContaining(
             convertRangeBackwards(
                 this.#binIndexToFrequencyConvertor, this.frequencyRange,
             ),
         ).trimmedToRange(new IntRange(0, this.fftSize - 1));
+    }
+
+    get binIndexRange (): IntRange {
+        return this.#binIndexRange;
     }
 
     reAnalyze () {
@@ -138,18 +141,19 @@ export class MusicAnalyzer {
         // For nicer visuals, don't let the volume be too low
         const minVolume: number = 0.32;
         const currTime = now();
-        editArray(this.analysisData, (val, i) => {
-            i += this.binIndexRange.start;
-            const real: any = result[2 * i];
-            const imag: any = result[2 * i + 1];
+
+        const data: Float32Array = this.analysisData;
+        for (let i = 0 ; i < data.length ; i++) {
+            const real: any = result[2 * (i + this.binIndexRange.start)];
+            const imag: any = result[2 * (i + this.binIndexRange.start) + 1];
 
             let newVal = log10(hypot(real, imag) + minVolume);
             if (!isFinite(newVal)) newVal = 0;
-            return MusicAnalyzer.smoother.calculate(
-                val, newVal, currTime,
+            data[i] = MusicAnalyzer.smoother.calculate(
+                data[i], newVal, currTime,
                 adjustedDecayTime,
             );
-        }, ...this.binIndexRange.endpoints);
+        }
         MusicAnalyzer.smoother.updateTime();
     }
 

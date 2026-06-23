@@ -3,6 +3,7 @@ import {
 } from "react";
 import { Canvas } from "@/lib/canvas";
 import { useAnimation } from "@/lib/react-utils/hooks";
+import { getStaticVariable } from "@/lib/utils/getStaticVariable";
 
 export function AnimatedCanvas ({
     initializer,
@@ -10,7 +11,7 @@ export function AnimatedCanvas ({
     ref = null,
     ...canvasProps
 }: {
-    initializer: (canvas: Canvas) => any,
+    initializer: (canvas: Canvas) => (void | (() => void)),
     animator: (canvas: Canvas) => any,
     ref?: RefObject<HTMLCanvasElement | null> | null,
 } & Partial<DetailedHTMLProps<CanvasHTMLAttributes<HTMLCanvasElement>, HTMLCanvasElement>>) {
@@ -18,8 +19,11 @@ export function AnimatedCanvas ({
     const r: RefObject<HTMLCanvasElement | null> = ref ?? defaultRef;
 
     const canvas = useMemo(() => {
+        const oldResultCleanup = getStaticVariable(() => [ () => {} ]);
+        oldResultCleanup[0]();
+
         const result = new Canvas(r);
-        initializer.call(null, result);
+        oldResultCleanup[0] = initializer.call(null, result) ?? (() => {});
         return result;
     }, [ r ]);
 

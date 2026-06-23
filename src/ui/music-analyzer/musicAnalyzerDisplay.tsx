@@ -74,18 +74,33 @@ export function MusicAnalyzerDisplay () {
                 const bb = (e.target as HTMLCanvasElement).getBoundingClientRect();
                 const clickFraction = (e.clientX - bb.left) / bb.width;
                 player.position = clamp(clickFraction, 0, 1) * player.duration;
-            } } initializer={ () => {
-
+            } } initializer={ canvas => {
+                const resizer = () => {
+                    canvas.resizeToFitCSS();
+                };
+                const interval = setInterval(resizer, 1000);
+                window.addEventListener("resize", resizer);
+                return () => {
+                    clearInterval(interval);
+                    window.removeEventListener("resize", resizer)
+                }
             } } animator={ canvas => {
-                canvas.resizeToFitCSS();
                 drawWaveform(canvas, player);
             } } ref={ canvasRef }/>
         </div>
         <div id="spectrum">
             <AnimatedCanvas initializer={ canvas => {
                 canvas.textAlignment = TextAlignment.Center;
+                const resizer = () => {
+                    canvas.resizeToFitCSS(2);
+                };
+                const interval = setInterval(resizer, 1000);
+                window.addEventListener("resize", resizer);
+                return () => {
+                    clearInterval(interval);
+                    window.removeEventListener("resize", resizer)
+                }
             } } animator={ canvas => {
-                canvas.resizeToFitCSS(2);
                 drawFFT(canvas, analyzer);
             } }/>
         </div>

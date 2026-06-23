@@ -1,6 +1,7 @@
 import { Gain, getContext, now, Player, ToneAudioBuffer } from "tone";
 import { clamp } from "@/lib/utils/util";
 import { AudioFile } from "@/logic/audioFile";
+import { setWeakInterval } from "@/lib/utils/weakSetInterval";
 
 // TODO: integrate with media session API
 
@@ -24,6 +25,8 @@ export class MusicPlayer {
 
     #doRepeat: boolean = false;
 
+    #sampleRate: number;
+
     // Can replace with console.debug to enable logging of player events
     private readonly debug: Function = () => void 0;
 
@@ -45,6 +48,12 @@ export class MusicPlayer {
             this.#resumeTime = NaN;
             this.onstop.call(null);
         };
+
+        // Cache sample rate, but update it periodically
+        this.#sampleRate = getContext().sampleRate;
+        setWeakInterval(this, (x: this) => {
+            x.#sampleRate = getContext().sampleRate;
+        }, 2000);
     }
 
     get duration () {
@@ -197,6 +206,6 @@ export class MusicPlayer {
     }
 
     get sampleRate () {
-        return getContext().sampleRate;
+        return this.#sampleRate;
     }
 }

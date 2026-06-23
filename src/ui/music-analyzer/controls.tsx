@@ -3,7 +3,7 @@ import { ToneAudioBuffer } from "tone";
 import { AudioFile } from "@/logic/audioFile";
 import { Uploader } from "@/ui/music-analyzer/uploader";
 import { NumberRange } from "@/lib/utils/numberRange";
-import { ReactElement, useEffect, useMemo, useRef, useState } from "react";
+import { ReactElement, useMemo, useRef, useState } from "react";
 import { MusicAnalyzer } from "@/logic/analyzer";
 import { useAnimation, useListenerOnElement } from "@/lib/react-utils/hooks";
 import {
@@ -35,15 +35,6 @@ export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
     const positionRef = useRef<HTMLSpanElement>(null);
     const fpsRef = useRef<HTMLSpanElement>(null);
 
-    useAnimation(useMemo(() => () => {
-        if (positionRef.current) {
-            const s = `${ player.position.toFixed(2) }`;
-            if (positionRef.current.textContent !== s) {
-                positionRef.current.textContent = s;
-            }
-        }
-    }, [analyzer, player]));
-
     useListenerOnElement(positionRef, {
         listenerType: 'wheel',
         listener:     useMemo(
@@ -54,15 +45,25 @@ export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
     });
 
     useAnimation(useMemo(() => (t, dt) => {
-        const smoother = getStaticVariable(() => Smoother.exponential({}))
+        const smoother = getStaticVariable(() => Smoother.exponential({}));
         const fps = 1 / Math.max(dt, 0.0101); // Avoid infinities
         smoother.update(fps, t, 0.5);
-        const s: string = `${Math.round(smoother.value)}`;
 
-        if(fpsRef.current && fpsRef.current.textContent !== s) {
-            fpsRef.current.textContent = s
+        if (fpsRef.current) {
+            const node = fpsRef.current.childNodes[0] as Text;
+            const s: string = `${ Math.round(smoother.value) }`;
+            if (node.nodeValue !== s) {
+                node.nodeValue = s;
+            }
         }
-    }, []))
+        if (positionRef.current) {
+            const node = positionRef.current.childNodes[0] as Text;
+            const s = `${ player.position.toFixed(2) }`;
+            if (node.nodeValue !== s) {
+                node.nodeValue = s;
+            }
+        }
+    }, [ analyzer, player ]));
 
     return <div id="playback-controls">
         <Uploader
@@ -92,16 +93,14 @@ export function Controls ({ analyzer }: { analyzer: MusicAnalyzer }) {
         <label id="current-position-display"
                style={ { "--text-width": '3.5em' } as any }>
             <span>Current position: </span>
-            <span
-                ref={ positionRef }>{ `${ player.position.toFixed(
-                2) }` }</span>
+            <span ref={ positionRef }>{ '?' }</span>
         </label>
 
         <div className="divider"/>
         <label id="current-position-display"
                style={ { "--text-width": '1em' } as any }>
             <span>FPS: </span>
-            <span ref={ fpsRef }></span>
+            <span ref={ fpsRef }>{ '?' }</span>
         </label>
         <div className="divider"/>
         <div id="playback-controls-center"/>
