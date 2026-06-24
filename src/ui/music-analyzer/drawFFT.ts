@@ -2,7 +2,9 @@
 import { IntRange, NumberRange } from "@/lib/utils/numberRange";
 import { MaximumFinder } from "@/lib/utils/minMax";
 import { now } from "tone";
-import { LinearValueConvertor } from "@/lib/utils/valueConvertor";
+import {
+    convertRangeForwards, LinearValueConvertor,
+} from "@/lib/utils/valueConvertor";
 import { Smoother } from "@/lib/utils/smoother";
 import { Canvas } from "@/lib/canvas";
 import { MusicAnalyzer } from "@/logic/analyzer";
@@ -47,8 +49,17 @@ export function drawFFT (canvas: Canvas, analyzer: MusicAnalyzer) {
     canvas.clear();
 
     // Draw grid
+    canvas.strokeWidth = convertRangeForwards(midiToXFrac, new NumberRange(0, 1)).length * canvas.width * 0.95;
+    canvas.opacity = 0.1;
+    for (let midi = midiRange.start; midi <= midiRange.end; midi++) {
+        const x = midiToXFrac.convertForwards(midi) * canvas.width;
+        canvas.strokeColor = [
+            1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1
+        ][midi % 12] ? COLORS.fg_color : COLORS.medium_color;
+        canvas.immediateLine(x, 0, x, canvas.height);
+    }
     canvas.strokeWidth = 2.1;
-    canvas.opacity = 0.5;
+    canvas.opacity = 0.6;
     canvas.strokeColor = COLORS.medium_color;
     for (let intensity = -2 ; intensity <= 10 ; intensity++) {
         const normalized = normalizeIntensity.convertForwards(intensity);
@@ -58,13 +69,10 @@ export function drawFFT (canvas: Canvas, analyzer: MusicAnalyzer) {
         const y = canvas.height * (1 - normalized);
         canvas.immediateLine(0, y, canvas.width, y);
     }
-    for (let midi = midiRange.start; midi <= midiRange.end; midi++) {
-        const x = midiToXFrac.convertForwards(midi) * canvas.width;
-        canvas.immediateLine(x, 0, x, canvas.height);
-    }
     canvas.opacity = 1;
 
     // Draw FFT
+    canvas.strokeWidth = 2.1;
     canvas.strokeColor = COLORS.accent_color;
     canvas.immediateStrokeSpline(...binnedData.map(([ x, y ]) => [
         midiToXFrac.convertForwards(x) * canvas.width,

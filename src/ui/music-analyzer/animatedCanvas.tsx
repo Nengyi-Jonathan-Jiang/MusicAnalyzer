@@ -19,7 +19,7 @@ export function AnimatedCanvas ({
     const r: RefObject<HTMLCanvasElement | null> = ref ?? defaultRef;
 
     const canvas = useMemo(() => {
-        const oldResultCleanup = getStaticVariable(() => [ () => {} ]);
+        const oldResultCleanup = getStaticVariable(() => [ () => {} ], r);
         oldResultCleanup[0]();
 
         const result = new Canvas(r);

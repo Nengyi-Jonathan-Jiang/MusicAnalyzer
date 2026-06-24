@@ -58,7 +58,7 @@ export function drawWaveform (canvas: Canvas, player: MusicPlayer): void {
     canvas.clear();
 
     canvas.strokeColor = COLORS.fg_color;
-    canvas.strokeWidth = 1;
+    canvas.strokeWidth = 2;
     canvas.immediateLine(0, canvas.height / 2, canvas.width, canvas.height / 2);
 
     if (!player.isAudioLoaded) return;
@@ -69,16 +69,18 @@ export function drawWaveform (canvas: Canvas, player: MusicPlayer): void {
 
     canvas.opacity = 0.4;
     canvas.strokeColor = COLORS.accent_color;
+    canvas.beginNewPath();
     for (let i = 0 ; i < length ; i++) {
         const val = peak[i];
 
-        canvas.immediateLine(
+        canvas.line(
             i + 0.5,
             canvas.height * (1 + val * 0.8) / 2,
             i + 0.5,
             canvas.height * (1 - val * 0.8) / 2,
         );
     }
+    canvas.stroke();
 
     canvas.opacity = 1;
     canvas.strokeColor = COLORS.fg_color;
