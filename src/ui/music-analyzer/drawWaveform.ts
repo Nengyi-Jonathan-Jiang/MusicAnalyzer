@@ -6,12 +6,14 @@ import { Cache } from "@/lib/utils/cache";
 import { MaximumFinder } from "@/lib/utils/minMax";
 import { getObjectId } from "@/lib/utils/hash";
 import { clamp } from "@/lib/utils/math";
+import CacheSingle = Cache.CacheSingle;
+import { AudioFile } from "@/logic/audioFile";
 
-const simplifiedWaveform = new Cache.CacheSingle<
-    { rms: Float32Array, peak: Float32Array, length: number },
-    [ Float32Array, number ]
->(
-    (arr, width) => {
+const _cachedWaveformCanvas = new Canvas(document.createElement('canvas'));
+const cachedWaveform = new CacheSingle(
+    (audio: AudioFile, width: number, height: number) => {
+        const arr = audio.audioData;
+
         // Good enough for most screens
         const length: number = Math.min(arr.length, width);
         const rms = new Float32Array(length);
@@ -46,59 +48,67 @@ const simplifiedWaveform = new Cache.CacheSingle<
         editArray(rms, i => (i / max.get()) ** 0.8);
         editArray(peak, i => (i / max.get()) ** 0.8);
 
-        return {
-            rms, peak, length,
-        };
+        const canvas = _cachedWaveformCanvas;
+        canvas.width = width;
+        canvas.height = height;
+
+        canvas.clear();
+
+        canvas.opacity = 0.4;
+        canvas.strokeColor = COLORS.accent_color;
+        canvas.beginNewPath();
+        for (let i = 0 ; i < length ; i++) {
+            const val = peak[i];
+
+            canvas.line(
+                i + 0.5,
+                canvas.height * (1 + val * 0.8) / 2,
+                i + 0.5,
+                canvas.height * (1 - val * 0.8) / 2,
+            );
+        }
+        canvas.stroke();
+
+        canvas.opacity = 1;
+        canvas.strokeColor = COLORS.fg_color;
+        canvas.beginNewPath();
+        for (let i = 0 ; i < length ; i++) {
+            const val = rms[i];
+
+            canvas.line(
+                i + 0.5,
+                canvas.height * (1 + val * 0.8) / 2,
+                i + 0.5,
+                canvas.height * (1 - val * 0.8) / 2,
+            );
+        }
+        canvas.stroke();
+
+        return canvas;
     },
-    (arr, width) => `${ getObjectId(arr) }:${ width }`,
-);
+    (audio, w, h) => `${getObjectId(audio)}|${w}|${h}`
+)
 
 export function drawWaveform (canvas: Canvas, player: MusicPlayer): void {
-    canvas.opacity = 1;
     canvas.clear();
 
     canvas.strokeColor = COLORS.fg_color;
+    canvas.opacity = 1;
     canvas.strokeWidth = 2;
+
+    // Draw center horizontal line
     canvas.immediateLine(0, canvas.height / 2, canvas.width, canvas.height / 2);
 
     if (!player.isAudioLoaded) return;
 
-    const { rms, peak, length } = (
-        simplifiedWaveform.get(player.audio.audioData, canvas.width)
+    // Get cached waveform image and draw it on top
+    const waveform = cachedWaveform.get(
+        player.audio, canvas.width, canvas.height
     );
+    canvas.drawImage(waveform.canvas!, 0, 0);
 
-    canvas.opacity = 0.4;
-    canvas.strokeColor = COLORS.accent_color;
-    canvas.beginNewPath();
-    for (let i = 0 ; i < length ; i++) {
-        const val = peak[i];
-
-        canvas.line(
-            i + 0.5,
-            canvas.height * (1 + val * 0.8) / 2,
-            i + 0.5,
-            canvas.height * (1 - val * 0.8) / 2,
-        );
-    }
-    canvas.stroke();
-
-    canvas.opacity = 1;
-    canvas.strokeColor = COLORS.fg_color;
-    canvas.beginNewPath();
-    for (let i = 0 ; i < length ; i++) {
-        const val = rms[i];
-
-        canvas.line(
-            i + 0.5,
-            canvas.height * (1 + val * 0.8) / 2,
-            i + 0.5,
-            canvas.height * (1 - val * 0.8) / 2,
-        );
-    }
-    canvas.stroke();
-
+    // Draw position line
     const playFraction = clamp(player.position / player.duration, 0, 1);
-    canvas.strokeWidth = 2;
     canvas.immediateLine(
         playFraction * canvas.width, 0,
         playFraction * canvas.width, canvas.height,

@@ -13,9 +13,8 @@ import {
 } from "@/ui/music-analyzer/midiHelpers";
 import { COLORS } from "@/css-colors";
 import { Cache } from "@/lib/utils/cache";
-import CacheSingle = Cache.CacheSingle;
 import { clamp } from "@/lib/utils/math";
-import { getStaticVariable } from "@/lib/utils/getStaticVariable";
+import CacheSingle = Cache.CacheSingle;
 
 const frequencyRange = new NumberRange(25, 4320);
 const midiRange = new IntRange(21, 108);
@@ -23,15 +22,17 @@ const midiToXFrac = LinearValueConvertor.fittingRangeTo(
     midiRange, new NumberRange(0.02, 0.993), // These values look nice
 );
 
+
+let currFrame = 0;
+
 export function drawFFT (canvas: Canvas, analyzer: MusicAnalyzer) {
     if (!canvas.raw_ctx) return;
 
     analyzer.frequencyRange = frequencyRange;
 
     // Skip analysis on some frames for performance
-    const currFrameVar = getStaticVariable(() => [0]);
-    const currFrame = (currFrameVar[0] = (currFrameVar[0] + 1) & 3);
-    if(!(currFrame & ({14: 1, 15: 3, 16: 3}[analyzer.resolution] ?? 0))) {
+    currFrame = (currFrame + 1) & 3;
+    if (!(currFrame & ({ 14: 1, 15: 3, 16: 3 }[analyzer.resolution] ?? 0))) {
         analyzer.reAnalyze();
     }
     analyzer.updateSmoothed();
@@ -49,12 +50,13 @@ export function drawFFT (canvas: Canvas, analyzer: MusicAnalyzer) {
     canvas.clear();
 
     // Draw grid
-    canvas.strokeWidth = convertRangeForwards(midiToXFrac, new NumberRange(0, 1)).length * canvas.width * 0.95;
+    canvas.strokeWidth = convertRangeForwards(
+        midiToXFrac, new NumberRange(0, 1)).length * canvas.width * 0.95;
     canvas.opacity = 0.1;
-    for (let midi = midiRange.start; midi <= midiRange.end; midi++) {
+    for (let midi = midiRange.start ; midi <= midiRange.end ; midi++) {
         const x = midiToXFrac.convertForwards(midi) * canvas.width;
         canvas.strokeColor = [
-            1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1
+            1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1,
         ][midi % 12] ? COLORS.fg_color : COLORS.medium_color;
         canvas.immediateLine(x, 0, x, canvas.height);
     }
@@ -84,7 +86,6 @@ export function drawFFT (canvas: Canvas, analyzer: MusicAnalyzer) {
         for (const { midi, yFrac, text } of info) {
             const x = midiToXFrac.convertForwards(midi) * canvas.width;
             const y = (1 - yFrac) * canvas.height;
-            canvas.circle(x, y, 2);
             canvas.immediateFillText(text, x, y - canvas.height * 0.03);
         }
     }
@@ -105,7 +106,7 @@ export function drawFFT (canvas: Canvas, analyzer: MusicAnalyzer) {
         );
     }
     canvas.clearRect(0, 0, canvas.width, canvas.height * 0.05);
-    for (let midi = midiRange.start; midi <= midiRange.end; midi++) {
+    for (let midi = midiRange.start ; midi <= midiRange.end ; midi++) {
         const x = midiToXFrac.convertForwards(midi) * canvas.width;
         const noteName = midiNoteValueToString(midi);
         canvas.immediateFillText(noteName, x, canvas.height * .025);
@@ -199,7 +200,6 @@ function binPoints (
 }
 
 
-
 function findPeaks (
     binnedData: [ number, number ][],
     binIndices: IntRange,
@@ -237,7 +237,7 @@ function findPeaks (
             else break;
         }
 
-        if (maxDepth.get() > 0.1) {
+        if (maxDepth.get() > 0.2) {
             const fontSize: any = canvas.width * 0.006 * (
                 Math.log10(maxDepth.get() * 10) ** 0.2
             );

@@ -249,11 +249,14 @@ class CanvasBase {
         this.ctx?.clearRect(x, y, width, height);
     }
 
-    clear () {
+    clear (requireResetTransform=false) {
         if (!this.ctx) return;
 
-        this.pushState();
-        this.resetTransform();
+        if(requireResetTransform) {
+            this.resetTransform();
+            this.pushState();
+        }
+
         this.clearRect(0, 0, this.ctx.canvas.width, this.ctx.canvas.height);
 
         if (this.#clearColor !== "transparent") {
@@ -261,7 +264,9 @@ class CanvasBase {
             this.ctx.fillRect(0, 0, this.width, this.height);
         }
 
-        this.popState();
+        if(requireResetTransform) {
+            this.popState();
+        }
     }
 
 
